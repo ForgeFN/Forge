@@ -277,8 +277,14 @@ std::vector<FFortItemEntry> PickLootDrops(FName TierGroupName)
 	FString TierGroupNameFStr = TierGroupNameWCStr; */
     auto TierGroupFName = TierGroupName; // UKismetStringLibrary::StaticClass()->CreateDefaultObject< UKismetStringLibrary>()->Conv_StringToName(TierGroupNameFStr);
 
-    static auto LTD = UObject::FindObject<UDataTable>("/Game/Items/Datatables/AthenaLootTierData_Client.AthenaLootTierData_Client"); // Cast<AFortGameStateAthena>(GetWorld()->GameState)->CurrentPlaylistInfo.BasePlaylist->LootTierData.Get();
-    static auto LP = UObject::FindObject<UDataTable>("/Game/Items/Datatables/AthenaLootPackages_Client.AthenaLootPackages_Client"); // Cast<AFortGameStateAthena>(GetWorld()->GameState)->CurrentPlaylistInfo.BasePlaylist->LootPackages.Get();
+    static auto LTD = Cast<AFortGameStateAthena>(GetWorld()->GameState)->CurrentPlaylistInfo.BasePlaylist->LootTierData.Get();
+    static UDataTable* LP = Cast<AFortGameStateAthena>(GetWorld()->GameState)->CurrentPlaylistInfo.BasePlaylist->LootPackages.Get();
+
+    if (!LTD)
+        LTD = UObject::FindObject<UDataTable>("/Game/Items/Datatables/AthenaLootTierData_Client.AthenaLootTierData_Client");
+
+    if (!LP)
+        LP = UObject::FindObject<UDataTable>("/Game/Items/Datatables/AthenaLootPackages_Client.AthenaLootPackages_Client");
 
     auto& LTDRowMap = LTD->RowMap;
 

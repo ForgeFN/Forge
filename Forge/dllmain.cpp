@@ -89,8 +89,10 @@ DWORD WINAPI Main(LPVOID)
     HookFunction(UFortControllerComponent_Interaction::StaticClass()->CreateDefaultObject(), ServerAttemptInteractFn, ServerAttemptInteractHook, (PVOID*)&ServerAttemptInteract, false, ServerAttemptInteractFnOffset);
     // ^^ 41 FF 92 08 04 00 00
 
+    int ServerServerLoadingScreenDroppedIndex = 0x12F0;
     static auto ServerLoadingScreenDroppedFn = UObject::FindObject<UFunction>("/Script/FortniteGame.FortPlayerController.ServerLoadingScreenDropped");
-    HookFunction(DefaultFortPCAthena, ServerLoadingScreenDroppedFn, ServerLoadingScreenDroppedHook, (PVOID*)&ServerLoadingScreenDropped);
+    HookFunction(DefaultFortPCAthena, ServerLoadingScreenDroppedFn, ServerLoadingScreenDroppedHook, (PVOID*)&ServerLoadingScreenDropped, false, ServerServerLoadingScreenDroppedIndex);
+    // ^^ 48 FF A0 F0 12 00 00
 
     static auto ServerAttemptInventoryDropFn = UObject::FindObject<UFunction>("/Script/FortniteGame.FortPlayerController.ServerAttemptInventoryDrop");
     HookFunction(DefaultFortPCAthena, ServerAttemptInventoryDropFn, ServerAttemptInventoryDropHook);
@@ -115,6 +117,9 @@ DWORD WINAPI Main(LPVOID)
 
     static auto ServerUpdateStateSyncFn = UObject::FindObject<UFunction>("/Script/FortniteGame.FortPhysicsPawn.ServerUpdateStateSync");
     HookFunction(AFortPhysicsPawn::StaticClass()->CreateDefaultObject(), ServerUpdateStateSyncFn, ServerUpdateStateSyncHook);
+
+    static FRotator* (*GetControlRotation)(AFortPlayerController* Controller, FRotator* a2) = decltype(GetControlRotation)(__int64(GetModuleHandleW(0)) + 0x17B1F20);
+    // CREATE_HOOK(GetControlRotationHook, GetControlRotation);
 
     static void (*HandleReloadCost)(AFortWeapon* Weapon, int AmountToRemove) = decltype(HandleReloadCost)(__int64(GetModuleHandleW(0)) + 0x1c66a30);
     // CREATE_HOOK(HandleReloadCostHook, HandleReloadCost);

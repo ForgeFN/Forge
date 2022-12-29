@@ -27,8 +27,8 @@ static void ActivateAbility(UAbilitySystemComponent* AbilitySystemComponent, FGa
 	UGameplayAbility* InstancedAbility;
 	Spec->InputPressed = true;
 
-	static bool (*InternalTryActivateAbility)(UAbilitySystemComponent*, FGameplayAbilitySpecHandle Handle, FPredictionKey InPredictionKey, UGameplayAbility * *OutInstancedAbility, void* OnGameplayAbilityEndedDelegate, const FGameplayEventData * TriggerEventData) =
-		decltype(InternalTryActivateAbility)((uintptr_t)GetModuleHandle(0) + 0x9367F0);
+	static bool (*InternalTryActivateAbility)(UAbilitySystemComponent*, FGameplayAbilitySpecHandle Handle, FPredictionKey InPredictionKey, UGameplayAbility** OutInstancedAbility, void* OnGameplayAbilityEndedDelegate, const FGameplayEventData * TriggerEventData) =
+		decltype(InternalTryActivateAbility)((uintptr_t)GetModuleHandleW(0) + 0x9367F0);
 
 	if (!InternalTryActivateAbility(AbilitySystemComponent, Ability, PredictionKey, &InstancedAbility, nullptr, EventData))
 	{
@@ -96,14 +96,11 @@ bool ReadyToStartMatchHook(AFortGameModeAthena* GameMode)
 	if (!GameState->MapInfo)
 		return false;
 
-	static UNetDriver* (*CreateNetDriver)(UEngine*, UWorld*, FName) =
-		decltype(CreateNetDriver)((uintptr_t)GetModuleHandle(0) + 0x347FAF0);
+	static UNetDriver* (*CreateNetDriver)(UEngine*, UWorld*, FName) = decltype(CreateNetDriver)((uintptr_t)GetModuleHandle(0) + 0x347FAF0);
 
-	static char (*InitListen)(UNetDriver*, void*, FURL&, bool, FString&) =
-		decltype(InitListen)((uintptr_t)GetModuleHandle(0) + 0x6F5F90);
+	static char (*InitListen)(UNetDriver*, void*, FURL&, bool, FString&) = decltype(InitListen)((uintptr_t)GetModuleHandle(0) + 0x6F5F90);
 
-	static void (*SetWorld)(UNetDriver*, UWorld*) =
-		decltype(SetWorld)((uintptr_t)GetModuleHandle(0) + 0x31EDF40);
+	static void (*SetWorld)(UNetDriver*, UWorld*) = decltype(SetWorld)((uintptr_t)GetModuleHandle(0) + 0x31EDF40);
 
 	GetWorld()->NetDriver = CreateNetDriver(GEngine, GetWorld(), UKismetStringLibrary::Conv_StringToName(L"GameNetDriver"));
 
@@ -339,6 +336,8 @@ void HandleStartingNewPlayerHook(AFortGameModeAthena* GameMode, AFortPlayerContr
 	GameState->GameMemberInfoArray.Members.Add(MemberInfo);
 	GameState->GameMemberInfoArray.MarkArrayDirty();
 
+	// CurrentTeamIndex++;
+
 	GameState->PlayersLeft++;
 	GameState->OnRep_PlayersLeft();
 
@@ -356,6 +355,9 @@ void ServerLoadingScreenDroppedHook(AFortPlayerControllerAthena* PlayerControlle
 	// if (MyFortPawn)
 		// MyFortPawn->bIsScriptedBot = true;
 
+	// static auto LlamaClass = UObject::FindObject<UClass>("/Game/Athena/SupplyDrops/Llama/AthenaSupplyDrop_Llama.AthenaSupplyDrop_Llama_C");
+	// GetWorld()->SpawnActor<AFortAthenaSupplyDrop>(MyFortPawn->K2_GetActorLocation(), FRotator(), LlamaClass);
+
 	return ServerLoadingScreenDropped(PlayerController);
 }
 
@@ -366,8 +368,17 @@ void ServerMoveHook(AFortPhysicsPawn* PhysicsPawn, FReplicatedPhysicsPawnState I
 	if (!Mesh)
 		return;
 
+// #define ROT_TO_QUAT
+
+#ifdef ROT_TO_QUAT
+	FRotator Rot = Mesh->K2_GetComponentRotation();
+	FQuat Quat = Quaternion(Rot);
+#else
 	FQuat Quat = InState.Rotation; // Quaternion(Rot);
 	FRotator Rot = Rotator(Quat); // Mesh->RelativeRotation
+#endif
+
+	// PhysicsPawn->GravityMultiplier
 
 	FTransform Transform{};
 	Transform.Translation = InState.Translation;
@@ -375,16 +386,16 @@ void ServerMoveHook(AFortPhysicsPawn* PhysicsPawn, FReplicatedPhysicsPawnState I
 	Transform.Scale3D = FVector{ 1, 1, 1 };
 
 	PhysicsPawn->SafeTeleportInfo.Location = Transform.Translation;
-	PhysicsPawn->SafeTeleportInfo.Rotation = Rot;
+	// PhysicsPawn->SafeTeleportInfo.Rotation = Rot;
 	PhysicsPawn->OnRep_SafeTeleportInfo();
 
 	bool bTeleport = false;
 	bool bSweep = false;
 
 	// Mesh->K2_SetRelativeLocation(Transform.Translation, bSweep, bTeleport, nullptr);
-	Mesh->K2_SetWorldTransform(Transform, bSweep, bTeleport, nullptr);
+	// Mesh->K2_SetWorldTransform(Transform, bSweep, bTeleport, nullptr);
 	Mesh->bComponentToWorldUpdated = true;
-	Mesh->K2_SetRelativeLocationAndRotation(Transform.Translation, Rot, bSweep, bTeleport, nullptr);
+	// Mesh->K2_SetRelativeLocationAndRotation(Transform.Translation, Rot, bSweep, bTeleport, nullptr);
 	Mesh->SetPhysicsLinearVelocity(InState.LinearVelocity, 0, FName());
 	Mesh->SetPhysicsAngularVelocity(InState.AngularVelocity, 0, FName());
 }
@@ -558,8 +569,12 @@ void (*ServerAttemptInteract)(UFortControllerComponent_Interaction* InteractionC
 void ServerAttemptInteractHook(UFortControllerComponent_Interaction* InteractionComponent, AActor* ReceivingActor, UPrimitiveComponent* InteractComponent,
 	TEnumAsByte<ETInteractionType> InteractType, UObject* OptionalObjectData)
 {
+	static auto LlamaClass = UObject::FindObject<UClass>("/Game/Athena/SupplyDrops/Llama/AthenaSupplyDrop_Llama.AthenaSupplyDrop_Llama_C");
+
 	auto Controller = Cast<AFortPlayerControllerAthena>(InteractionComponent->GetOwner());
 	auto Pawn = Controller->MyFortPawn;
+
+	auto CorrectLocation = ReceivingActor->K2_GetActorLocation() + ReceivingActor->GetActorRightVector() * 70.0f + FVector{ 0, 0, 50 }; // + LootSpawnOffset?
 
 	if (auto RebootVan = Cast<ABuildingGameplayActorSpawnMachine>(ReceivingActor))
 	{
@@ -609,8 +624,6 @@ void ServerAttemptInteractHook(UFortControllerComponent_Interaction* Interaction
 		Container->bAlreadySearched = true;
 		Container->OnRep_bAlreadySearched();
 
-		auto CorrectLocation = Container->K2_GetActorLocation() + Container->GetActorRightVector() * 70.0f + FVector{ 0, 0, 50 };
-
 		EFortPickupSpawnSource SpawnSource = EFortPickupSpawnSource::Unset;
 		auto SearchLootTierGroup = Container->SearchLootTierGroup;
 
@@ -626,6 +639,8 @@ void ServerAttemptInteractHook(UFortControllerComponent_Interaction* Interaction
 			SpawnSource = EFortPickupSpawnSource::AmmoBox;
 		}
 
+		std::cout << std::format("[{}] {}\n", Container->GetName(), SearchLootTierGroup.ToString());
+
 		auto LootDrops = PickLootDrops(SearchLootTierGroup);
 
 		for (auto& LootDrop : LootDrops)
@@ -634,7 +649,27 @@ void ServerAttemptInteractHook(UFortControllerComponent_Interaction* Interaction
 		}
 	}
 
+	else if (auto SupplyDrop = Cast<AFortAthenaSupplyDrop>(ReceivingActor))
+	{
+		auto LootTierGroup = SupplyDrop->IsA(LlamaClass) ? UKismetStringLibrary::Conv_StringToName(L"Loot_AthenaLlama") : UKismetStringLibrary::Conv_StringToName(L"Loot_AthenaSupplyDrop"); // SupplyDrop->GetLootTierGroupOverride();
+
+		std::cout << std::format("[{}] {}\n", SupplyDrop->GetName(), LootTierGroup.ToString());
+
+		auto LootDrops = PickLootDrops(LootTierGroup);
+
+		for (auto& LootDrop : LootDrops)
+		{
+			SpawnPickup(LootDrop.ItemDefinition, CorrectLocation, LootDrop.Count, EFortPickupSourceTypeFlag::Other, EFortPickupSpawnSource::SupplyDrop);
+		}
+	}
+
 	return ServerAttemptInteract(InteractionComponent, ReceivingActor, InteractComponent, InteractType, OptionalObjectData);
+}
+
+FRotator* GetControlRotationHook(AFortPlayerController* Controller, FRotator* a2)
+{
+	*a2 = Controller->ControlRotation;
+	return a2;
 }
 
 void ClientOnPawnDiedHook(AFortPlayerControllerAthena* PlayerController, FFortPlayerDeathReport DeathReport)
@@ -787,7 +822,7 @@ static void OnDamageServerHook(ABuildingActor* BuildingActor, float Damage, FGam
 
 					//UDataTableFunctionLibrary::EvaluateCurveTableRow(BuildingResourceAmountOverride.CurveTable, BuildingResourceAmountOverride.RowName, X, L"", &Result, &Out);
 
-					ResourceCount = round(Out / round(BuildingSMActor->GetMaxHealth() / Damage));
+					ResourceCount = round(Out / round(BuildingSMActor->GetMaxHealth() / Damage)); // almost right
 				}
 			}
 
@@ -935,8 +970,9 @@ void ServerAddMapMarkerHook(UAthenaMarkerComponent* MarkerComponent, FFortClient
 
 		/// auto CurrentTeamMemberPS = Cast<AFortPlayerStateAthena>(CurrentTeamMemberPC->PlayerState);
 
-		CurrentTeamMemberPC->BroadcastRemoteClientInfo->OnServerAddMapMarker(MarkerData);
-		CurrentTeamMemberPC->MarkerComponent->ClientAddMarker(MarkerData);
+		// CurrentTeamMemberPC->BroadcastRemoteClientInfo->ClientRemotePlayerAddMapMarker(MarkerData);
+		// CurrentTeamMemberPC->BroadcastRemoteClientInfo->OnServerAddMapMarker(MarkerData); // cals ClientRemotePlayerAddMapMarker?
+		// CurrentTeamMemberPC->MarkerComponent->ClientAddMarker(MarkerData);
 	}
 }
 
@@ -1022,7 +1058,9 @@ static void ServerAttemptInventoryDropHook(AFortPlayerControllerAthena* PlayerCo
 
 	if (auto ItemEntry = FindReplicatedEntry(PlayerController, ItemGuid))
 	{
-		if (ItemEntry->Count < Count)
+		auto ItemDefinition = Cast<UFortWorldItemDefinition>(ItemEntry->ItemDefinition);
+
+		if (ItemEntry->Count < Count || !ItemDefinition || !ItemDefinition->bCanBeDropped)
 			return;
 
 		if (auto Pickup = SpawnPickup(*ItemEntry, Pawn->K2_GetActorLocation()))
@@ -1057,9 +1095,9 @@ static void ServerEditBuildingActorHook(AFortPlayerControllerAthena* PlayerContr
 
 static void ServerEndEditingBuildingActorHook(AFortPlayerControllerAthena* PlayerController, ABuildingSMActor* BuildingActorToStopEditing)
 {
-	if (!PlayerController->IsInAircraft() && BuildingActorToStopEditing && PlayerController->Pawn)
+	if (!PlayerController->IsInAircraft() && BuildingActorToStopEditing && PlayerController->MyFortPawn)
 	{
-		auto EditTool = Cast<AFortWeap_EditingTool>((((AFortPlayerPawnAthena*)PlayerController->Pawn)->CurrentWeapon));
+		auto EditTool = Cast<AFortWeap_EditingTool>(PlayerController->MyFortPawn->CurrentWeapon);
 
 		BuildingActorToStopEditing->EditingPlayer = nullptr;
 		BuildingActorToStopEditing->OnRep_EditingPlayer();
