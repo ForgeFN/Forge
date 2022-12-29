@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.2.32630.192
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Forge", "Forge\Forge.vcxproj", "{212CD8F3-322B-49FA-A535-9F226342C602}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Debug|x86 = Debug|x86
+		Release|x64 = Release|x64
+		Release|x86 = Release|x86
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{212CD8F3-322B-49FA-A535-9F226342C602}.Debug|x64.ActiveCfg = Debug|x64
+		{212CD8F3-322B-49FA-A535-9F226342C602}.Debug|x64.Build.0 = Debug|x64
+		{212CD8F3-322B-49FA-A535-9F226342C602}.Debug|x86.ActiveCfg = Debug|Win32
+		{212CD8F3-322B-49FA-A535-9F226342C602}.Debug|x86.Build.0 = Debug|Win32
+		{212CD8F3-322B-49FA-A535-9F226342C602}.Release|x64.ActiveCfg = Release|x64
+		{212CD8F3-322B-49FA-A535-9F226342C602}.Release|x64.Build.0 = Release|x64
+		{212CD8F3-322B-49FA-A535-9F226342C602}.Release|x86.ActiveCfg = Release|Win32
+		{212CD8F3-322B-49FA-A535-9F226342C602}.Release|x86.Build.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {8AAB942E-79F2-41AC-96E3-923303D4497F}
+	EndGlobalSection
+EndGlobal
