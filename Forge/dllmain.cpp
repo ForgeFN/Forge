@@ -17,6 +17,9 @@ DWORD WINAPI Main(LPVOID)
 
     UObject::GObjects = decltype(UObject::GObjects)(__int64(GetModuleHandleW(0)) + 0x64a0090);
 
+    *(bool*)(__int64(GetModuleHandleW(0)) + 0x637925B) = false; // GIsClient
+    *(bool*)(__int64(GetModuleHandleW(0)) + 0x637925C) = true; // GIsServer
+
     auto PlayerController = GetWorld()->OwningGameInstance->LocalPlayers[0]->PlayerController;
     PlayerController->SwitchLevel(L"Athena_Terrain");
 
@@ -31,9 +34,6 @@ DWORD WINAPI Main(LPVOID)
     auto CanActivateAbilityAddress = (void*)(__int64(GetModuleHandleW(0)) + 0x9214C0);
     CREATE_HOOK(rettrue, CanActivateAbilityAddress);
 
-    *(bool*)(__int64(GetModuleHandleW(0)) + 0x637925B) = false; // GIsClient
-    *(bool*)(__int64(GetModuleHandleW(0)) + 0x637925C) = true; // GIsServer
-
     auto DefaultFortPCAthena = UObject::FindObject<AFortPlayerControllerAthena>("/Game/Athena/Athena_PlayerController.Default__Athena_PlayerController_C");
     auto DefaultFortAbilitySystemComp = UFortAbilitySystemComponentAthena::StaticClass()->CreateDefaultObject();
     auto DefaultFortPlayerStateAthena = AFortPlayerStateAthena::StaticClass()->CreateDefaultObject();
@@ -41,8 +41,6 @@ DWORD WINAPI Main(LPVOID)
     auto DefaultFortPawnAthena = UObject::FindObject<AFortPlayerPawnAthena>("/Game/Athena/PlayerPawn_Athena.Default__PlayerPawn_Athena_C");
     auto DefaultTrapTool = UObject::FindObject<AFortTrapTool>("/Game/Weapons/FORT_BuildingTools/TrapTool.Default__TrapTool_C");
     auto DefaultFortPhysicsPawn = AFortPhysicsPawn::StaticClass()->CreateDefaultObject();
-
-    std::cout << std::format("aaa: 0x{:x}\n", __int64(DefaultFortPCAthena->VFT[0xC8]) - __int64(GetModuleHandleW(0)));
 
     static auto ReadyToStartMatchFn = UObject::FindObject<UFunction>("/Script/Engine.GameMode.ReadyToStartMatch");
     HookFunction(DefaultFortGameModeAthena, ReadyToStartMatchFn, ReadyToStartMatchHook);
@@ -128,6 +126,8 @@ DWORD WINAPI Main(LPVOID)
 
     static void (*KickPlayer)(void*, void*) = decltype(KickPlayer)((uintptr_t)GetModuleHandleW(0) + 0x17F07B0);
     CREATE_HOOK(rettrue, KickPlayer);
+
+    CREATE_HOOK(GenericArray_GetHook, GenericArray_Get);
 
     CREATE_HOOK(OnDamageServerHook, OnDamageServer);
 

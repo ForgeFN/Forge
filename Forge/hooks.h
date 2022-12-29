@@ -214,6 +214,22 @@ void ServerAcknowledgePossessionHook(APlayerController* PlayerController, APawn*
 	PlayerController->AcknowledgedPawn = P;
 }
 
+using FArrayProperty = void;
+
+static void (*GenericArray_Get)(void* TargetArray, const FArrayProperty* ArrayProp, int32 Index, void* Item) = decltype(GenericArray_Get)(__int64(GetModuleHandleW(0)) + 0x312BBE0);
+
+static void GenericArray_GetHook(void* TargetArray, const FArrayProperty* ArrayProp, int32 Index, void* Item)
+{
+	int v9 = 0;
+	if (Index < 0 || (v9 = *(int*)(__int64(TargetArray) + 8), Index >= v9))
+	{
+		// not valid
+		return;
+	}
+
+	return GenericArray_Get(TargetArray, ArrayProp, Index, Item);
+}
+
 static void (*HandleStartingNewPlayer)(AFortGameModeAthena* GameMode, AFortPlayerControllerAthena* NewPlayer);
 
 void HandleStartingNewPlayerHook(AFortGameModeAthena* GameMode, AFortPlayerControllerAthena* NewPlayer)
@@ -460,10 +476,10 @@ static void ServerExecuteInventoryItemHook(AFortPlayerControllerAthena* PlayerCo
 	{
 		auto WeaponClass = TrapDef->GetWeaponActorClass();
 
-		if (!WeaponClass)
-			return;
+		// if (!WeaponClass)
+			// return;
 
-		// WeaponClass = UObject::FindObject<UClass>("/Script/FortniteGame.BuildingTrap");
+		WeaponClass = UObject::FindObject<UClass>("/Script/FortniteGame.BuildingTrap");
 
 		auto Tool = GetWorld()->SpawnActor<ABuildingTrap>(Pawn->K2_GetActorLocation(), FRotator(), WeaponClass);
 		Pawn->PickUpActor(Tool, TrapDef); // Bad
@@ -632,8 +648,6 @@ void ClientOnPawnDiedHook(AFortPlayerControllerAthena* PlayerController, FFortPl
 
 	// if (GameState->GamePhase <= EAthenaGamePhase::Aircraft)
 		// return ClientOnPawnDied(PlayerController, DeathReport);
-
-	std::cout << "\n\n\n\n\n\n\n\n\n\n\n\nHello Sir!\n\n\n\n\n\n\n\n";
 
 	if (PlayerController && PlayerState)
 	{
