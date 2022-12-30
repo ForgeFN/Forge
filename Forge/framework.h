@@ -15,6 +15,14 @@ static __forceinline UWorld* GetWorld()
 	return GEngine->GameViewport->World;
 }
 
+inline void SendMessageToConsole(AFortPlayerController* PlayerController, FString Msg)
+{
+	float MsgLifetime = 1; // unused by ue
+	FName TypeName = FName(); // auto set to "Event"
+
+	PlayerController->ClientMessage(Msg, TypeName, MsgLifetime);
+}
+
 template <typename T>
 static __forceinline T* Cast(UObject* Object)
 {
@@ -45,8 +53,38 @@ static FName StringToName(const FString& String)
 
 inline APawn* SpawnDefaultPawnForHook(AGameModeBase* GameMode, AController* NewPlayer, AActor* StartSpot)
 {
-	auto SpawnLocation = StartSpot->GetTransform();
+	auto SpawnTransform = StartSpot->GetTransform();
 	// SpawnLocation.Translation = FVector{ 1250, 1818, 3284 };
 
-	return GameMode->SpawnDefaultPawnAtTransform(NewPlayer, SpawnLocation);
+	auto Controller = Cast<AFortPlayerControllerAthena>(NewPlayer);
+
+	if (Controller)
+	{
+		auto PlayerState = Cast<AFortPlayerStateAthena>(Controller->PlayerState);
+
+		if (PlayerState)
+		{
+			auto& RespawnData = PlayerState->RespawnData;
+
+			if (RespawnData.bServerIsReady && RespawnData.bRespawnDataAvailable) // && GameState->IsRespawningAllowed(PlayerState);
+			{
+				SpawnTransform.Translation = PlayerState->RespawnData.RespawnLocation;
+				// SpawnTransform.Rotation = Quaternion(PlayerState->RespawnData.RespawnRotation);
+			}
+		}
+	}
+
+	return GameMode->SpawnDefaultPawnAtTransform(NewPlayer, SpawnTransform);
+}
+
+inline void RestartServer()
+{
+	auto GameMode = Cast<AFortGameModeAthena>(GetWorld()->AuthorityGameMode);
+
+	if (!GameMode)
+		return;
+
+	*(bool*)(__int64(GetModuleHandleW(0)) + 0x637925B) = true; // GIsClient // fixes Failed to listen
+	GameMode->RestartGame(); // idk why tf this doesnt switchlevel
+	// UKismetSystemLibrary::ExecuteConsoleCommand(GetWorld(), L"open Athena_Terrain", nullptr);
 }

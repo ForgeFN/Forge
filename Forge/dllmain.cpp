@@ -1,11 +1,23 @@
 #include <Windows.h>
 
 #include "util.h"
-
+#include "admin.h"
 #include "hooks.h"
+
+enum ENetMode
+{
+    NM_Standalone,
+    NM_DedicatedServer,
+    NM_ListenServer,
+    NM_Client,
+    NM_MAX,
+};
 
 bool rettrue() { return true; }
 bool retfalse() { return false; }
+
+ENetMode GetNetModeHook() { return ENetMode::NM_DedicatedServer; }
+bool IsNoMCPHook() { return true; }
 
 DWORD WINAPI Main(LPVOID)
 {
@@ -17,22 +29,22 @@ DWORD WINAPI Main(LPVOID)
 
     UObject::GObjects = decltype(UObject::GObjects)(__int64(GetModuleHandleW(0)) + 0x64a0090);
 
-    *(bool*)(__int64(GetModuleHandleW(0)) + 0x637925B) = false; // GIsClient
-    *(bool*)(__int64(GetModuleHandleW(0)) + 0x637925C) = true; // GIsServer
-
     auto PlayerController = GetWorld()->OwningGameInstance->LocalPlayers[0]->PlayerController;
     PlayerController->SwitchLevel(L"Athena_Terrain");
 
     GetWorld()->OwningGameInstance->LocalPlayers.Remove(0);
 
-    auto GetNetModeAddress = (void*)(__int64(GetModuleHandleW(0)) + 0x34d2140);
-    CREATE_HOOK(rettrue, GetNetModeAddress);
+    ENetMode (*GetNetMode)()  = decltype(GetNetMode)(__int64(GetModuleHandleW(0)) + 0x34d2140);
+    CREATE_HOOK(GetNetModeHook, GetNetMode);
 
-    auto NoMCPAddress = (void*)(__int64(GetModuleHandleW(0)) + 0x161d600);
-    CREATE_HOOK(rettrue, NoMCPAddress);
+    bool(*IsNoMCP)() = decltype(IsNoMCP)(__int64(GetModuleHandleW(0)) + 0x161d600);
+    CREATE_HOOK(IsNoMCPHook, IsNoMCP);
 
     auto CanActivateAbilityAddress = (void*)(__int64(GetModuleHandleW(0)) + 0x9214C0);
     CREATE_HOOK(rettrue, CanActivateAbilityAddress);
+
+    *(bool*)(__int64(GetModuleHandleW(0)) + 0x637925B) = false; // GIsClient
+    *(bool*)(__int64(GetModuleHandleW(0)) + 0x637925C) = true; // GIsServer
 
     auto DefaultFortPCAthena = UObject::FindObject<AFortPlayerControllerAthena>("/Game/Athena/Athena_PlayerController.Default__Athena_PlayerController_C");
     auto DefaultFortAbilitySystemComp = UFortAbilitySystemComponentAthena::StaticClass()->CreateDefaultObject();
@@ -118,11 +130,17 @@ DWORD WINAPI Main(LPVOID)
     static auto ServerUpdateStateSyncFn = UObject::FindObject<UFunction>("/Script/FortniteGame.FortPhysicsPawn.ServerUpdateStateSync");
     HookFunction(AFortPhysicsPawn::StaticClass()->CreateDefaultObject(), ServerUpdateStateSyncFn, ServerUpdateStateSyncHook);
 
+    static auto ServerCheatFn = UObject::FindObject<UFunction>("/Script/FortniteGame.FortPlayerController.ServerCheat");
+    HookFunction(DefaultFortPCAthena, ServerCheatFn, ServerCheatHook);
+
+    static auto ServerSetInAircraftFn = UObject::FindObject<UFunction>("/Script/FortniteGame.FortPlayerStateAthena.ServerSetInAircraft");
+    HookFunction(DefaultFortPlayerStateAthena, ServerSetInAircraftFn, ServerSetInAircraftHook, (PVOID*)&ServerSetInAircraft, false, -1, IAmADumbass::fALSE);
+
     static FRotator* (*GetControlRotation)(AFortPlayerController* Controller, FRotator* a2) = decltype(GetControlRotation)(__int64(GetModuleHandleW(0)) + 0x17B1F20);
     // CREATE_HOOK(GetControlRotationHook, GetControlRotation);
 
     static void (*HandleReloadCost)(AFortWeapon* Weapon, int AmountToRemove) = decltype(HandleReloadCost)(__int64(GetModuleHandleW(0)) + 0x1c66a30);
-    // CREATE_HOOK(HandleReloadCostHook, HandleReloadCost);
+    CREATE_HOOK(HandleReloadCostHook, HandleReloadCost);
 
     static void (*GetPlayerViewPoint)(AFortPlayerControllerAthena* PlayerController, FVector& Location, FRotator& Rotation) = decltype(GetPlayerViewPoint)(__int64(GetModuleHandleW(0)) + 0x19A4780);
     CREATE_HOOK(GetPlayerViewPointHook, GetPlayerViewPoint);

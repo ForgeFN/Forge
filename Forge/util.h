@@ -52,7 +52,14 @@ inline std::string GetBytes(uintptr_t Address, int count = 10) {
 	return Bytes;
 }
 
-inline __int64 GetFunctionIdxOrPtr(UFunction* Function, bool bHookExec = false) // This can return address or index
+enum IAmADumbass
+{
+	NO,
+	fALSE,
+	tRUE
+};
+
+inline __int64 GetFunctionIdxOrPtr(UFunction* Function, bool bHookExec = false, IAmADumbass Dumbass = IAmADumbass::NO) // This can return address or index
 {
 	auto NativeAddr = __int64(Function->Func);
 
@@ -62,6 +69,11 @@ inline __int64 GetFunctionIdxOrPtr(UFunction* Function, bool bHookExec = false) 
 	std::wstring ValidateWStr = (std::wstring(Function->GetNameFStr().Data) + L"_Validate");
 	const wchar_t* ValidateWCStr = ValidateWStr.c_str();
 	bool bHasValidateFunc = Memcury::Scanner::FindStringRef(ValidateWCStr).Get();
+
+	if (Dumbass != IAmADumbass::NO)
+	{
+		bHasValidateFunc = Dumbass == IAmADumbass::fALSE ? false : true;
+	}
 
 	// LOG_INFO(LogDev, "[{}] bHasValidateFunc: {}", Function->GetName(), bHasValidateFunc);
 	// LOG_INFO(LogDev, "NativeAddr: 0x{:x}", __int64(NativeAddr) - __int64(GetModuleHandleW(0)));
@@ -164,9 +176,9 @@ inline bool IsBadReadPtr(void* p)
 	return true;
 }
 
-inline void HookFunction(UObject* DefaultClass, UFunction* Function, void* NewFunc, void** OG = nullptr, bool bHookExec = false, __int64 HardcodedOffset = -1)
+inline void HookFunction(UObject* DefaultClass, UFunction* Function, void* NewFunc, void** OG = nullptr, bool bHookExec = false, __int64 HardcodedOffset = -1, IAmADumbass REAL = IAmADumbass::NO)
 {
-	auto Thing = HardcodedOffset == -1 ? GetFunctionIdxOrPtr(Function, bHookExec) : HardcodedOffset;
+	auto Thing = HardcodedOffset == -1 ? GetFunctionIdxOrPtr(Function, bHookExec, REAL) : HardcodedOffset;
 
 	if (Thing != -1)
 	{

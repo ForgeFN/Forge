@@ -74,6 +74,8 @@ bool ReadyToStartMatchHook(AFortGameModeAthena* GameMode)
 	if (ActorsNum == 0)
 		return false;
 
+	*(bool*)(__int64(GetModuleHandleW(0)) + 0x637925B) = false; // GIsClient // for restarting
+
 	auto GameState = Cast<AFortGameStateAthena>(GetWorld()->GameState);
 
 	static bool aa = false;
@@ -96,11 +98,9 @@ bool ReadyToStartMatchHook(AFortGameModeAthena* GameMode)
 	if (!GameState->MapInfo)
 		return false;
 
-	static UNetDriver* (*CreateNetDriver)(UEngine*, UWorld*, FName) = decltype(CreateNetDriver)((uintptr_t)GetModuleHandle(0) + 0x347FAF0);
-
-	static char (*InitListen)(UNetDriver*, void*, FURL&, bool, FString&) = decltype(InitListen)((uintptr_t)GetModuleHandle(0) + 0x6F5F90);
-
-	static void (*SetWorld)(UNetDriver*, UWorld*) = decltype(SetWorld)((uintptr_t)GetModuleHandle(0) + 0x31EDF40);
+	static UNetDriver* (*CreateNetDriver)(UEngine*, UWorld*, FName) = decltype(CreateNetDriver)((uintptr_t)GetModuleHandleW(0) + 0x347FAF0);
+	static char (*InitListen)(UNetDriver*, void*, FURL&, bool, FString&) = decltype(InitListen)((uintptr_t)GetModuleHandleW(0) + 0x6F5F90);
+	static void (*SetWorld)(UNetDriver*, UWorld*) = decltype(SetWorld)((uintptr_t)GetModuleHandleW(0) + 0x31EDF40);
 
 	GetWorld()->NetDriver = CreateNetDriver(GEngine, GetWorld(), UKismetStringLibrary::Conv_StringToName(L"GameNetDriver"));
 
@@ -336,7 +336,7 @@ void HandleStartingNewPlayerHook(AFortGameModeAthena* GameMode, AFortPlayerContr
 	GameState->GameMemberInfoArray.Members.Add(MemberInfo);
 	GameState->GameMemberInfoArray.MarkArrayDirty();
 
-	// CurrentTeamIndex++;
+	CurrentTeamIndex++;
 
 	GameState->PlayersLeft++;
 	GameState->OnRep_PlayersLeft();
@@ -359,6 +359,37 @@ void ServerLoadingScreenDroppedHook(AFortPlayerControllerAthena* PlayerControlle
 	// GetWorld()->SpawnActor<AFortAthenaSupplyDrop>(MyFortPawn->K2_GetActorLocation(), FRotator(), LlamaClass);
 
 	return ServerLoadingScreenDropped(PlayerController);
+}
+
+void (*ServerSetInAircraft)(AFortPlayerStateAthena* PlayerState, bool bNewInAircraft);
+
+void ServerSetInAircraftHook(AFortPlayerStateAthena* PlayerState, bool bNewInAircraft)
+{
+	auto PlayerController = Cast<AFortPlayerControllerAthena>(PlayerState->GetOwner());
+
+	if (!PlayerController)
+		return;
+
+	if (bNewInAircraft)
+	{
+		auto& InventoryList = PlayerController->WorldInventory->Inventory;
+
+		for (int i = 5; i < InventoryList.ItemInstances.Num(); i++)
+		{
+			InventoryList.ItemInstances.Remove(i);
+		}
+
+		for (int i = 5; i < InventoryList.ReplicatedEntries.Num(); i++)
+		{
+			InventoryList.ReplicatedEntries.Remove(i);
+		}
+
+		Update(PlayerController);
+
+		PlayerState->CurrentShield = 0; // real
+	}
+
+	return ServerSetInAircraft(PlayerState, bNewInAircraft);
 }
 
 void ServerMoveHook(AFortPhysicsPawn* PhysicsPawn, FReplicatedPhysicsPawnState InState)
@@ -706,41 +737,44 @@ void ClientOnPawnDiedHook(AFortPlayerControllerAthena* PlayerController, FFortPl
 			KillerPlayerState->OnRep_Kills();
 		}
 
-		auto DroppableItems = GetDroppableItems(PlayerController);
-
-		for (int i = 0; i < DroppableItems.size(); i++)
+		if (!GameState->IsRespawningAllowed(PlayerState))
 		{
-			auto Item = DroppableItems[i];
+			auto DroppableItems = GetDroppableItems(PlayerController);
 
-			if (!Item)
-				continue;
-
-			SpawnPickup(Item->ItemEntry, DeathInfo.DeathLocation, EFortPickupSourceTypeFlag::Player, EFortPickupSpawnSource::PlayerElimination);
-			RemoveItem(PlayerController, Item->ItemEntry.ItemGuid, Item->ItemEntry.Count);
-		}
-
-		Update(PlayerController);
-
-		PlayerController->bMarkedAlive = false;
-
-		auto Winners = GetAlivePlayers();
-
-		for (int i = 0; i < GameMode->AlivePlayers.Num(); i++)
-		{
-			auto AlivePlayer = GameMode->AlivePlayers[i];
-
-			if (AlivePlayer == PlayerController)
+			for (int i = 0; i < DroppableItems.size(); i++)
 			{
-				GameMode->AlivePlayers.Remove(i);
-				break;
+				auto Item = DroppableItems[i];
+
+				if (!Item)
+					continue;
+
+				SpawnPickup(Item->ItemEntry, DeathInfo.DeathLocation, EFortPickupSourceTypeFlag::Player, EFortPickupSpawnSource::PlayerElimination);
+				RemoveItem(PlayerController, Item->ItemEntry.ItemGuid, Item->ItemEntry.Count);
 			}
+
+			Update(PlayerController);
+
+			PlayerController->bMarkedAlive = false;
+
+			auto Winners = GetAlivePlayers();
+
+			for (int i = 0; i < GameMode->AlivePlayers.Num(); i++)
+			{
+				auto AlivePlayer = GameMode->AlivePlayers[i];
+
+				if (AlivePlayer == PlayerController)
+				{
+					GameMode->AlivePlayers.Remove(i);
+					break;
+				}
+			}
+
+			GameState->PlayersLeft = Winners.size();
+			GameState->TotalPlayers = Winners.size();
+			GameState->OnRep_PlayersLeft();
+
+			SpawnRebootCard(PlayerController);
 		}
-
-		GameState->PlayersLeft = Winners.size();
-		GameState->TotalPlayers = Winners.size();
-		GameState->OnRep_PlayersLeft();
-
-		SpawnRebootCard(PlayerController);
 
 		/*
 		
@@ -863,6 +897,22 @@ void ServerCreateBuildingActorHook(AFortPlayerControllerAthena* PlayerController
 	if (!Pawn || !PlayerState || !BuildingClass)
 		return;
 
+	auto GameState = Cast<AFortGameStateAthena>(GetWorld()->GameState);
+
+	bool bFound = false;
+
+	for (int i = 0; i < GameState->BuildingActorClasses.Num(); i++)
+	{
+		if (GameState->BuildingActorClasses[i] == BuildingClass)
+		{
+			bFound = true;
+			break;
+		}
+	}
+
+	if (!bFound)
+		return;
+
 	TArray<ABuildingSMActor*> ExistingBuildings;
 	char idk;
 	bool bCanBuild = !CantBuild(GetWorld(), BuildingClass, CreateBuildingData.BuildLoc, CreateBuildingData.BuildRot, CreateBuildingData.bMirrored, &ExistingBuildings, &idk);
@@ -897,7 +947,7 @@ void ServerCreateBuildingActorHook(AFortPlayerControllerAthena* PlayerController
 			{
 				BuildingActor->K2_DestroyActor();
 			}
-			else if (ReplicatedMatEntry && ReplicatedMatEntry->ItemDefinition)
+			else if (ReplicatedMatEntry && ReplicatedMatEntry->ItemDefinition && !PlayerController->bBuildFree)
 			{
 				/* auto AssetManager = Cast<UFortAssetManager>(GEngine->AssetManager);
 				auto GameState = Cast<AFortGameStateAthena>(GetWorld()->GameState);
@@ -1114,7 +1164,14 @@ static void ServerEndEditingBuildingActorHook(AFortPlayerControllerAthena* Playe
 static void HandleReloadCostHook(AFortWeapon* Weapon, int AmountToRemove)
 {
 	auto Pawn = Cast<AFortPlayerPawnAthena>(Weapon->GetOwner());
+
+	if (!Pawn)
+		return;
+
 	auto PlayerController = Cast<AFortPlayerControllerAthena>(Pawn->Controller);
+
+	if (!PlayerController || PlayerController->bInfiniteAmmo)
+		return;
 
 	auto ReplicatedEntry = FindReplicatedEntry(PlayerController, Weapon->ItemEntryGuid);
 	auto InstanceEntry = &FindItemInstance(PlayerController, Weapon->ItemEntryGuid)->ItemEntry;

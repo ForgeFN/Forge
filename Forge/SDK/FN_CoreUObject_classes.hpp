@@ -44,7 +44,7 @@ public:
 		auto OrigInName = std::wstring(ObjectName.begin(), ObjectName.end()).c_str();
 
 		auto StaticFindObject = (T * (*)(UClass*, UObject*, const wchar_t* OrigInName, bool ExactClass))((uintptr_t)GetModuleHandleA(0) + 0x22FB1E0);
-		auto StaticLoadObject = (T * (*)(UClass*, UObject*, const wchar_t* InName, const wchar_t* Filename, uint32_t LoadFlags, UObject * Sandbox, bool bAllowObjectReconciliation))((uintptr_t)GetModuleHandle(0) + 0x22FC4C0);
+		auto StaticLoadObject = (T * (*)(UClass*, UObject*, const wchar_t* InName, const wchar_t* Filename, uint32_t LoadFlags, UObject* Sandbox, bool bAllowObjectReconciliation))((uintptr_t)GetModuleHandle(0) + 0x22FC4C0);
 
 		auto Object = StaticFindObject(T::StaticClass(), Outer, OrigInName, false);
 
@@ -52,6 +52,23 @@ public:
 			Object = StaticLoadObject(T::StaticClass(), Outer, OrigInName, nullptr, 0, nullptr, false);
 
 		return Object;
+	}
+
+	template<typename T = UObject>
+	static T* FindObjectSlow(const std::string& name)
+	{
+		for (int i = 0; i < GObjects->Num(); i++)
+		{
+			auto Object = GObjects->GetObjectById(i);
+
+			if (!Object)
+				continue;
+
+			if (Object->GetFullName().contains(name))
+				return (T*)Object;
+		}
+
+		return nullptr;
 	}
 
 	static UClass* FindClass(const std::string& name, UObject* Outer = nullptr)
@@ -81,7 +98,7 @@ public:
 
 	inline void ProcessEvent(class UFunction* function, void* parms)
 	{
-		auto ProcessEventPtr = (void (*)(void*, void*, void*))((uintptr_t)GetModuleHandle(0) + 0x22F2990);
+		static auto ProcessEventPtr = (void (*)(void*, void*, void*))((uintptr_t)GetModuleHandle(0) + 0x22F2990);
 		ProcessEventPtr(this, function, parms);
 	}
 
