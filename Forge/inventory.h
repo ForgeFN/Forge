@@ -142,7 +142,7 @@ static int GetClipSize(UFortWeaponItemDefinition* WeaponDef)
     return Row->ClipSize;
 }
 
-static UFortWorldItem* GiveItem(AFortPlayerControllerAthena* PlayerController, UFortItemDefinition* ItemDef, int Count, int LoadedAmmo = -1)
+static UFortWorldItem* GiveItem(AFortPlayerControllerAthena* PlayerController, UFortItemDefinition* ItemDef, int Count, int LoadedAmmo = -1, bool bAddToStateValues = false)
 {
     if (LoadedAmmo == -1)
     {
@@ -202,6 +202,15 @@ static UFortWorldItem* GiveItem(AFortPlayerControllerAthena* PlayerController, U
 
 	if (ItemInstance)
 	{
+        if (bAddToStateValues)
+        {
+            FFortItemEntryStateValue StateValue;
+            StateValue.IntValue = 1;
+            StateValue.StateType = EFortItemEntryState::ShouldShowItemToast;
+
+            ItemInstance->ItemEntry.StateValues.Add(StateValue);
+        }
+
 		ItemInstance->ItemEntry.Count = Count;
 		ItemInstance->ItemEntry.LoadedAmmo = LoadedAmmo;
 		ItemInstance->SetOwningControllerForTemporaryItem(PlayerController);
@@ -304,14 +313,17 @@ std::vector<FFortItemEntry> PickLootDrops(FName TierGroupName)
 
         // std::cout << "TierData->TierGroup.ToString(): " << TierDataGroupStr << '\n';
 
-        if (TierDataGroupStr == TierGroupNameStr)
+        if (TierDataGroupStr == TierGroupNameStr && TierData->Weight != 0)
         {
             TierGroupLTDs.push_back(TierData);
         }
     }
 
     if (TierGroupLTDs.size() == 0)
+    {
+        std::cout << "Failed to find any LTD for: " << TierGroupName.ToString() << '\n';
         return LootDrops;
+    }
 
     FFortLootTierData* ChosenRowLootTierData = GetLootTierData(TierGroupLTDs);
 
@@ -319,6 +331,12 @@ std::vector<FFortItemEntry> PickLootDrops(FName TierGroupName)
         return LootDrops;
 
     float NumLootPackageDrops = ChosenRowLootTierData->NumLootPackageDrops;
+
+    /* for (int i = 0; i < ChosenRowLootTierData->LootPackageCategoryWeightArray.Num(); i++)
+    {
+        if (ChosenRowLootTierData->LootPackageCategoryWeightArray[i] > 0)
+            NumLootPackageDrops++;
+    } */
 
     auto& LPRowMap = LP->RowMap;
 
@@ -332,7 +350,7 @@ std::vector<FFortItemEntry> PickLootDrops(FName TierGroupName)
         if (!LootPackage)
             continue;
 
-        if (LootPackage->LootPackageID == ChosenRowLootTierData->LootPackage)
+        if (LootPackage->LootPackageID == ChosenRowLootTierData->LootPackage && LootPackage->Weight != 0)
         {
             TierGroupLPs.push_back(LootPackage);
         }
@@ -366,7 +384,7 @@ std::vector<FFortItemEntry> PickLootDrops(FName TierGroupName)
             {
                 auto LootPackage = (FFortLootPackageData*)CurrentLP.Value();
 
-                if (LootPackage->LootPackageID.ToString() == TierGroupLPStr)
+                if (LootPackage->LootPackageID.ToString() == TierGroupLPStr && LootPackage->Weight != 0)
                 {
                     lootPackageCalls.push_back(LootPackage);
                 }

@@ -741,7 +741,6 @@ static bool OnSameTeam(std::vector<AFortPlayerStateAthena*> Players)
 	return true;
 }
 
-
 static AFortPickupAthena* SpawnPickup(UFortItemDefinition* ItemDef, FVector Location, int Count, EFortPickupSourceTypeFlag PickupSource = EFortPickupSourceTypeFlag::Other, EFortPickupSpawnSource SpawnSource = EFortPickupSpawnSource::Unset, int LoadedAmmo = -1)
 {
 	if (auto Pickup = GetWorld()->SpawnActor<AFortPickupAthena>(Location, {}))

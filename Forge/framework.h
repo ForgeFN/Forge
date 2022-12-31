@@ -23,6 +23,7 @@ inline void SendMessageToConsole(AFortPlayerController* PlayerController, FStrin
 	PlayerController->ClientMessage(Msg, TypeName, MsgLifetime);
 }
 
+
 template <typename T>
 static __forceinline T* Cast(UObject* Object)
 {
@@ -34,6 +35,18 @@ static __forceinline T* Cast(UObject* Object)
 	return nullptr;
 }
 
+static void ServerSuicideHook(AFortPlayerControllerAthena* PlayerController)
+{
+	std::cout << "suicide!\n";
+
+	auto Pawn = Cast<AFortPlayerPawnAthena>(PlayerController->Pawn);
+
+	if (Pawn)
+	{
+		Pawn->ForceKill(FGameplayTag(), PlayerController, Pawn);
+	}
+}
+
 static void (*TickFlush)(UNetDriver*) =
 	decltype(TickFlush)((uintptr_t)GetModuleHandle(0) + 0x31EECB0);
 
@@ -43,8 +56,9 @@ static FGameplayAbilitySpecHandle* (*GiveAbility)(UAbilitySystemComponent*, FGam
 static void (*OnDamageServer)(ABuildingActor* BuildingActor, float Damage, FGameplayTagContainer DamageTags, FVector Momentum, FHitResult HitInfo, AController* InstigatedBy, AActor* DamageCauser, FGameplayEffectContextHandle EffectContext) =
 	decltype(OnDamageServer)((uintptr_t)GetModuleHandle(0) + 0x1CC36A0);
 
-static void (*ClientOnPawnDied)(AFortPlayerControllerAthena*, FFortPlayerDeathReport) =
-decltype(ClientOnPawnDied)((uintptr_t)GetModuleHandle(0) + 0x1F34E50);
+static void (*ClientOnPawnDied)(AFortPlayerControllerAthena*, FFortPlayerDeathReport) = decltype(ClientOnPawnDied)((uintptr_t)GetModuleHandle(0) + 0x1F34E50);
+
+static void (*ClearAbility)(UAbilitySystemComponent* AbilitySystemComponent, const FGameplayAbilitySpecHandle& Handle) = decltype(ClearAbility)(__int64(GetModuleHandleW(0)) + 0x9233D0);
 
 static FName StringToName(const FString& String)
 {
@@ -74,7 +88,18 @@ inline APawn* SpawnDefaultPawnForHook(AGameModeBase* GameMode, AController* NewP
 		}
 	}
 
-	return GameMode->SpawnDefaultPawnAtTransform(NewPlayer, SpawnTransform);
+	auto newpawn = GameMode->SpawnDefaultPawnAtTransform(NewPlayer, SpawnTransform);
+	newpawn->bCanBeDamaged = false; // huh respawning
+
+	auto PawnAsAthena = Cast<AFortPlayerPawnAthena>(newpawn);
+
+	if (PawnAsAthena && Controller)
+	{
+		PawnAsAthena->CosmeticLoadout = Controller->CosmeticLoadoutPC;
+		PawnAsAthena->OnRep_CosmeticLoadout();
+	}
+
+	return newpawn;
 }
 
 inline void RestartServer()
@@ -87,4 +112,9 @@ inline void RestartServer()
 	*(bool*)(__int64(GetModuleHandleW(0)) + 0x637925B) = true; // GIsClient // fixes Failed to listen
 	GameMode->RestartGame(); // idk why tf this doesnt switchlevel
 	// UKismetSystemLibrary::ExecuteConsoleCommand(GetWorld(), L"open Athena_Terrain", nullptr);
+}
+
+namespace Globals
+{
+	static inline bool bSiphonEnabled = false;
 }

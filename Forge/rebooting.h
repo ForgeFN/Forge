@@ -28,14 +28,19 @@ void SpawnRebootCard(AFortPlayerControllerAthena* PlayerController)
 
 	std::unordered_set<AFortPlayerControllerAthena*> TeamMembers;
 
-	for (int i = 0; i < PlayerState->PlayerTeam->TeamMembers.Num(); i++)
+	auto PlayerTeam = PlayerState->PlayerTeam;
+
+	if (PlayerTeam)
 	{
-		auto TeamMember = Cast<AFortPlayerControllerAthena>(PlayerState->PlayerTeam->TeamMembers[i]);
+		for (int i = 0; i < PlayerTeam->TeamMembers.Num(); i++)
+		{
+			auto TeamMember = Cast<AFortPlayerControllerAthena>(PlayerTeam->TeamMembers[i]);
 
-		if (!TeamMember /* || TeamMember == PlayerController */)
-			continue;
+			if (!TeamMember /* || TeamMember == PlayerController */)
+				continue;
 
-		TeamMembers.emplace(TeamMember);
+			TeamMembers.emplace(TeamMember);
+		}
 	}
 
 	for (auto TeamMember : TeamMembers)

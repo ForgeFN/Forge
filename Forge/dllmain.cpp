@@ -69,6 +69,16 @@ DWORD WINAPI Main(LPVOID)
     static auto ServerExecuteInventoryItemFn = UObject::FindObject<UFunction>("/Script/FortniteGame.FortPlayerController.ServerExecuteInventoryItem");
     HookFunction(DefaultFortPCAthena, ServerExecuteInventoryItemFn, ServerExecuteInventoryItemHook);
 
+    static char (*SpawnLoot)(ABuildingContainer * BuildingContainer, AFortPlayerPawnAthena* Pawn, int idk, int idk2) = decltype(SpawnLoot)(__int64(GetModuleHandleW(0)) + 0x13A91C0);
+    CREATE_HOOK(SpawnLootHook, SpawnLoot);
+
+    static auto ServerSuicideFn = UObject::FindObject<UFunction>("/Script/FortniteGame.FortPlayerController.ServerSuicide");
+    HookFunction(DefaultFortPCAthena, ServerSuicideFn, ServerSuicideHook);
+
+    static int OnBuildingActorInitializedOffset = 0x610;
+    static auto OnBuildingActorInitializedFn = UObject::FindObject<UFunction>("/Script/FortniteGame.BuildingActor.OnBuildingActorInitialized");
+    // HookFunction(ABuildingActor::StaticClass()->CreateDefaultObject(), OnBuildingActorInitializedFn, OnBuildingActorInitializedHook, (PVOID*)&OnBuildingActorInitialized, false, OnBuildingActorInitializedOffset);
+
     static auto ServerPlayEmoteItemFn = UObject::FindObject<UFunction>("/Script/FortniteGame.FortPlayerController.ServerPlayEmoteItem");
     HookFunction(DefaultFortPCAthena, ServerPlayEmoteItemFn, ServerPlayEmoteItemHook);
 

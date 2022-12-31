@@ -84,8 +84,8 @@ bool ReadyToStartMatchHook(AFortGameModeAthena* GameMode)
 	{
 		aa = true;
 		
-		UFortPlaylistAthena* Playlist = UObject::FindObject<UFortPlaylistAthena>("/Game/Athena/Playlists/Playlist_DefaultSolo.Playlist_DefaultSolo");
-			// UObject::FindObject<UFortPlaylistAthena>("/Game/Athena/Playlists/Playground/Playlist_Playground.Playlist_Playground");
+		UFortPlaylistAthena* Playlist = // UObject::FindObject<UFortPlaylistAthena>("/Game/Athena/Playlists/Playlist_DefaultSolo.Playlist_DefaultSolo");
+			UObject::FindObject<UFortPlaylistAthena>("/Game/Athena/Playlists/Playground/Playlist_Playground.Playlist_Playground");
 		
 		GameState->CurrentPlaylistInfo.BasePlaylist = Playlist;
 		GameState->CurrentPlaylistInfo.OverridePlaylist = Playlist;
@@ -107,6 +107,8 @@ bool ReadyToStartMatchHook(AFortGameModeAthena* GameMode)
 	FString Error;
 	auto URL = FURL();
 	URL.Port = 7777;
+	
+	GameMode->GameSession->MaxPlayers = 100;
 
 	GetWorld()->NetDriver->World = GetWorld();
 	GetWorld()->NetDriver->NetDriverName = UKismetStringLibrary::Conv_StringToName(L"GameNetDriver");
@@ -129,23 +131,22 @@ bool ReadyToStartMatchHook(AFortGameModeAthena* GameMode)
 	{
 		auto ItemCollector = (ABuildingItemCollectorActor*)OutActors[i];
 
-		auto OverrideLootTierGroup = ItemCollector->GetLootTierGroupOverride();
+		auto OverrideLootTierGroup = UKismetStringLibrary::Conv_StringToName(L"Loot_AthenaVending"); // ItemCollector->GetLootTierGroupOverride();
 		auto LootDrops = PickLootDrops(OverrideLootTierGroup);
 
-		for (int z = 0; z < ItemCollector->ItemCollections.Num(); z++)
+		for (int z = 0; z < 2/* ItemCollector->ItemCollections.Num() */; z++)
 		{
 			if (z >= LootDrops.size())
 				break;
 
-			auto LootEntry = LootDrops.at(z);
+			auto& LootEntry = LootDrops.at(z);
 
 			ItemCollector->ItemCollections[z].OutputItem = (UFortWorldItemDefinition*)LootEntry.ItemDefinition;
-			ItemCollector->ItemCollections[z].OutputItemEntry[0] = LootEntry;
+			ItemCollector->ItemCollections[z].OutputItemEntry.Add(LootEntry);
 			ItemCollector->ItemCollections[z].OverrideOutputItemLootTierGroupName = OverrideLootTierGroup;
 		}
 	}
-
-
+	
 	auto SpawnIsland_FloorLoot = UObject::FindObject<UBlueprintGeneratedClass>("/Game/Athena/Environments/Blueprints/Tiered_Athena_FloorLoot_Warmup.Tiered_Athena_FloorLoot_Warmup_C");
 	auto BRIsland_FloorLoot = UObject::FindObject<UBlueprintGeneratedClass>("/Game/Athena/Environments/Blueprints/Tiered_Athena_FloorLoot_01.Tiered_Athena_FloorLoot_01_C");
 
@@ -227,6 +228,35 @@ static void GenericArray_GetHook(void* TargetArray, const FArrayProperty* ArrayP
 	return GenericArray_Get(TargetArray, ArrayProp, Index, Item);
 }
 
+void ApplyCID(AFortPlayerStateAthena* PlayerState, UAthenaCharacterItemDefinition* CID)
+{
+	auto& Specializations = CID->HeroDefinition->Specializations;
+
+	for (int i = 0; i < Specializations.Num(); i++)
+	{
+		auto& SpecializationSoft = Specializations[i];
+
+		auto Specialization = SpecializationSoft.Get();
+		
+		if (Specialization)
+		{
+			auto& CharacterParts = Specialization->CharacterParts;
+
+			for (int z = 0; z < CharacterParts.Num(); z++)
+			{
+				auto& CharacterPartSoft = CharacterParts[z];
+				auto CharacterPart = CharacterPartSoft.Get();
+
+				PlayerState->CharacterData.Parts[z] = CharacterPart;
+			}
+		}
+	}
+
+	PlayerState->HeroType = CID->HeroDefinition;
+	PlayerState->OnRep_HeroType();
+	PlayerState->OnRep_CharacterData();
+}
+
 static void (*HandleStartingNewPlayer)(AFortGameModeAthena* GameMode, AFortPlayerControllerAthena* NewPlayer);
 
 void HandleStartingNewPlayerHook(AFortGameModeAthena* GameMode, AFortPlayerControllerAthena* NewPlayer)
@@ -262,13 +292,13 @@ void HandleStartingNewPlayerHook(AFortGameModeAthena* GameMode, AFortPlayerContr
 	PlayerState->bHasStartedPlaying = true;
 	PlayerState->OnRep_bHasStartedPlaying();
 
-	static auto PickaxeDefinition = UObject::FindObject<UFortItemDefinition>("/Game/Athena/Items/Weapons/WID_Harvest_Pickaxe_Athena_C_T01.WID_Harvest_Pickaxe_Athena_C_T01");
+	static auto PickaxeDefinition = UObject::FindObject<UAthenaPickaxeItemDefinition>("/Game/Athena/Items/Cosmetics/Pickaxes/DefaultPickaxe.DefaultPickaxe");
 	static auto WallPiece = UObject::FindObject<UFortItemDefinition>("/Game/Items/Weapons/BuildingTools/BuildingItemData_Wall.BuildingItemData_Wall");
 	static auto FloorPiece = UObject::FindObject<UFortItemDefinition>("/Game/Items/Weapons/BuildingTools/BuildingItemData_Floor.BuildingItemData_Floor");
 	static auto StairPiece = UObject::FindObject<UFortItemDefinition>("/Game/Items/Weapons/BuildingTools/BuildingItemData_Stair_W.BuildingItemData_Stair_W");
 	static auto RoofPiece = UObject::FindObject<UFortItemDefinition>("/Game/Items/Weapons/BuildingTools/BuildingItemData_RoofS.BuildingItemData_RoofS");
 
-	GiveItem(NewPlayer, PickaxeDefinition, 1);
+	GiveItem(NewPlayer, PickaxeDefinition->WeaponDefinition, 1);
 	GiveItem(NewPlayer, WallPiece, 1);
 	GiveItem(NewPlayer, FloorPiece, 1);
 	GiveItem(NewPlayer, StairPiece, 1);
@@ -284,9 +314,14 @@ void HandleStartingNewPlayerHook(AFortGameModeAthena* GameMode, AFortPlayerContr
 	GiveItem(NewPlayer, UObject::FindObject<UFortItemDefinition>("/Game/Athena/Items/Ammo/AthenaAmmoDataBulletsLight.AthenaAmmoDataBulletsLight"), 999);
 	Update(NewPlayer);
 
+	static auto CID = UObject::FindObject<UAthenaCharacterItemDefinition>("/Game/Athena/Items/Cosmetics/Characters/CID_001_Athena_Commando_F_Default.CID_001_Athena_Commando_F_Default");
 	static auto HeadPart = UObject::FindObject<UCustomCharacterPart>("/Game/Characters/CharacterParts/Female/Medium/Heads/F_Med_Head1.F_Med_Head1");
 	static auto BodyPart = UObject::FindObject<UCustomCharacterPart>("/Game/Characters/CharacterParts/Female/Medium/Bodies/F_Med_Soldier_01.F_Med_Soldier_01");
 	static auto BackpackPart = UObject::FindObject<UCustomCharacterPart>("/Game/Characters/CharacterParts/Backpacks/NoBackpack.NoBackpack");
+
+	NewPlayer->CosmeticLoadoutPC.Character = CID;
+	NewPlayer->CosmeticLoadoutPC.Pickaxe = PickaxeDefinition;
+	// ApplyCID(PlayerState, CID);
 
 	PlayerState->CharacterData.Parts[0] = HeadPart;
 	PlayerState->CharacterData.Parts[1] = BodyPart;
@@ -417,14 +452,14 @@ void ServerMoveHook(AFortPhysicsPawn* PhysicsPawn, FReplicatedPhysicsPawnState I
 	Transform.Scale3D = FVector{ 1, 1, 1 };
 
 	PhysicsPawn->SafeTeleportInfo.Location = Transform.Translation;
-	// PhysicsPawn->SafeTeleportInfo.Rotation = Rot;
+	PhysicsPawn->SafeTeleportInfo.Rotation = Rot;
 	PhysicsPawn->OnRep_SafeTeleportInfo();
 
 	bool bTeleport = false;
 	bool bSweep = false;
 
 	// Mesh->K2_SetRelativeLocation(Transform.Translation, bSweep, bTeleport, nullptr);
-	// Mesh->K2_SetWorldTransform(Transform, bSweep, bTeleport, nullptr);
+	Mesh->K2_SetWorldTransform(Transform, bSweep, bTeleport, nullptr);
 	Mesh->bComponentToWorldUpdated = true;
 	// Mesh->K2_SetRelativeLocationAndRotation(Transform.Translation, Rot, bSweep, bTeleport, nullptr);
 	Mesh->SetPhysicsLinearVelocity(InState.LinearVelocity, 0, FName());
@@ -455,6 +490,7 @@ static void TickFlushHook(UNetDriver* NetDriver)
 	TickFlush(NetDriver);
 }
 
+
 static void ServerExecuteInventoryItemHook(AFortPlayerControllerAthena* PlayerController, FGuid ItemGuid)
 {
 	auto Pawn = Cast<AFortPlayerPawnAthena>(PlayerController->Pawn);
@@ -472,10 +508,49 @@ static void ServerExecuteInventoryItemHook(AFortPlayerControllerAthena* PlayerCo
 
 	if (Pawn->CurrentWeapon)
 	{
-		if (auto GadgetDef = Cast<UAthenaGadgetItemDefinition>(Pawn->CurrentWeapon->WeaponData)) // is this right?
+		if (auto GadgetDef = Cast<UFortDecoItemDefinition>(Pawn->CurrentWeapon->WeaponData)) // is this right?
 		{
 			// reset character parts here
+			ApplyCID(PlayerState, Pawn->CosmeticLoadout.Character);
+
 			// clear the ability set
+
+			/*
+			auto AbilitySystemComponent = PlayerState->AbilitySystemComponent;
+
+			UFortAbilitySet* GadgetAbilitySet = GadgetDef->AbilitySet.Get();
+
+			if (GadgetAbilitySet)
+			{
+				for (int i = 0; i < GadgetAbilitySet->GameplayAbilities.Num(); i++)
+				{
+					auto currentAbilityDefault = GadgetAbilitySet->GameplayAbilities[i]->CreateDefaultObject<UGameplayAbility>();
+
+					for (int z = 0; z < AbilitySystemComponent->ActivatableAbilities.Items.Num(); z++)
+					{
+						auto& activatableAbility = AbilitySystemComponent->ActivatableAbilities.Items[z];
+
+						if (activatableAbility.Ability == currentAbilityDefault)
+							ClearAbility(AbilitySystemComponent, activatableAbility.Handle);
+					}
+				}
+
+				for (int i = 0; i < GadgetAbilitySet->GrantedGameplayEffects.Num(); i++)
+				{
+					auto& currentGameplayEffect = GadgetAbilitySet->GrantedGameplayEffects[i];
+					AbilitySystemComponent->RemoveActiveGameplayEffectBySourceEffect(currentGameplayEffect.GameplayEffect, AbilitySystemComponent, 100); 
+				}
+			}
+
+			static auto AGID_SpookyMist = UObject::FindObject<UAthenaGadgetItemDefinition>("/Game/Athena/Items/Gameplay/SpookyMist/AGID_SpookyMist.AGID_SpookyMist")->GetWeaponItemDefinition();
+
+			if (ItemDef == AGID_SpookyMist)
+			{
+				auto Pickaxe = FindItemInstance(PlayerController, Pawn->CosmeticLoadout.Pickaxe->WeaponDefinition);
+
+				if (Pickaxe)
+					GiveItem(PlayerController, Pickaxe->ItemEntry.ItemDefinition, 1);
+			} */
 		}
 	}
 
@@ -509,6 +584,22 @@ static void ServerExecuteInventoryItemHook(AFortPlayerControllerAthena* PlayerCo
 
 				GiveAbility(PlayerState->AbilitySystemComponent, &Handle, Spec);
 			}
+
+			for (int i = 0; i < GadgetAbilitySet->GrantedGameplayEffects.Num(); i++)
+			{
+				auto& GEToGrant = GadgetAbilitySet->GrantedGameplayEffects[i];
+				PlayerState->AbilitySystemComponent->BP_ApplyGameplayEffectToTarget(GEToGrant.GameplayEffect, PlayerState->AbilitySystemComponent, GEToGrant.Level, FGameplayEffectContextHandle());
+			}
+		}
+
+		static auto AGID_SpookyMist = UObject::FindObject<UAthenaGadgetItemDefinition>("/Game/Athena/Items/Gameplay/SpookyMist/AGID_SpookyMist.AGID_SpookyMist");
+
+		if (ItemDef == AGID_SpookyMist)
+		{
+			auto Pickaxe = FindItemInstance(PlayerController, Pawn->CosmeticLoadout.Pickaxe->WeaponDefinition);
+
+			if (Pickaxe)
+				RemoveItem(PlayerController, Pickaxe->ItemEntry.ItemGuid, 1);
 		} */
 
 		ItemDef = GadgetDef->GetWeaponItemDefinition();
@@ -616,7 +707,23 @@ void ServerAttemptInteractHook(UFortControllerComponent_Interaction* Interaction
 	{
 		ServerAttemptInteract(InteractionComponent, ReceivingActor, InteractComponent, InteractType, OptionalObjectData);
 
-		/* int SeatIndex = Vehicle->FindSeatIndex(Pawn);
+		/* auto CharacterMovement = Cast<UFortMovementComp_Character>(Pawn->CharacterMovement);
+
+		if (!CharacterMovement)
+			return;
+
+		void (*SetMovementMode)(UFortMovementComp_Character* MovementComp, EMovementMode MovementMode, EFortCustomMovement CustomMovementMode) = decltype(SetMovementMode)(CharacterMovement->VFT[0xAE]);
+
+		if (Pawn->IsDrivingVehicle())
+		{
+			SetMovementMode(CharacterMovement, EMovementMode::MOVE_Custom, EFortCustomMovement::Driving);
+		}
+		else
+		{
+			SetMovementMode(CharacterMovement, EMovementMode::MOVE_Custom, EFortCustomMovement::Passenger);
+		} */
+
+		int SeatIndex = Vehicle->FindSeatIndex(Pawn);
 		auto WeaponComponent = Vehicle->GetSeatWeaponComponent(SeatIndex);
 
 		if (WeaponComponent)
@@ -642,12 +749,12 @@ void ServerAttemptInteractHook(UFortControllerComponent_Interaction* Interaction
 					}
 				}
 			}
-		} */
+		}
 
 		return;
 	}
 
-	else if (auto Container = Cast<ABuildingContainer>(ReceivingActor))
+	/* else if (auto Container = Cast<ABuildingContainer>(ReceivingActor))
 	{
 		if (Container->bAlreadySearched)
 			return;
@@ -678,7 +785,7 @@ void ServerAttemptInteractHook(UFortControllerComponent_Interaction* Interaction
 		{
 			SpawnPickup(LootDrop.ItemDefinition, CorrectLocation, LootDrop.Count, EFortPickupSourceTypeFlag::Container, SpawnSource);
 		}
-	}
+	} */
 
 	else if (auto SupplyDrop = Cast<AFortAthenaSupplyDrop>(ReceivingActor))
 	{
@@ -703,11 +810,39 @@ FRotator* GetControlRotationHook(AFortPlayerController* Controller, FRotator* a2
 	return a2;
 }
 
+void (*OnBuildingActorInitialized)(ABuildingActor* BuildingActor, TEnumAsByte<EFortBuildingInitializationReason> InitializationReason, TEnumAsByte<EFortBuildingPersistentState> BuildingPersistentState);
+
+void OnBuildingActorInitializedHook(ABuildingActor* BuildingActor, TEnumAsByte<EFortBuildingInitializationReason> InitializationReason, TEnumAsByte<EFortBuildingPersistentState> BuildingPersistentState)
+{
+	static auto SpawnIsland_FloorLoot = UObject::FindObject<UBlueprintGeneratedClass>("/Game/Athena/Environments/Blueprints/Tiered_Athena_FloorLoot_Warmup.Tiered_Athena_FloorLoot_Warmup_C");
+	static auto BRIsland_FloorLoot = UObject::FindObject<UBlueprintGeneratedClass>("/Game/Athena/Environments/Blueprints/Tiered_Athena_FloorLoot_01.Tiered_Athena_FloorLoot_01_C");
+
+	std::cout << "SpawnIsland_FloorLoot: " << SpawnIsland_FloorLoot << '\n';
+
+	if (// BuildingPersistentState == EFortBuildingPersistentState::Constructed && 
+		(BuildingActor->IsA(SpawnIsland_FloorLoot) || BuildingActor->IsA(BRIsland_FloorLoot)))
+	{
+		auto BuildingContainer = (ABuildingContainer*)BuildingActor;
+		std::vector<FFortItemEntry> LootDrops = PickLootDrops(BuildingContainer->SearchLootTierGroup);
+
+		auto Location = BuildingContainer->K2_GetActorLocation();
+		Location.Z += 50;
+
+		if (LootDrops.size())
+		{
+			for (auto& LootDrop : LootDrops)
+				SpawnPickup(LootDrop, Location, EFortPickupSourceTypeFlag::FloorLoot);
+		}
+	}
+
+	return OnBuildingActorInitialized(BuildingActor, InitializationReason, BuildingPersistentState);
+}
+
 void ClientOnPawnDiedHook(AFortPlayerControllerAthena* PlayerController, FFortPlayerDeathReport DeathReport)
 {
 	auto PlayerState = Cast<AFortPlayerStateAthena>(PlayerController->PlayerState);
 	auto KillerPawn = Cast<AFortPlayerPawnAthena>(DeathReport.KillerPawn);
-	auto Pawn = Cast<AFortPlayerPawnAthena>(PlayerController->Pawn);
+	auto DeadPawn = Cast<AFortPlayerPawnAthena>(PlayerController->Pawn);
 	auto KillerPlayerState = Cast<AFortPlayerStateAthena>(DeathReport.KillerPlayerState);
 	auto GameMode = Cast<AFortGameModeAthena>(GetWorld()->AuthorityGameMode);
 	auto GameState = Cast<AFortGameStateAthena>(GetWorld()->GameState);
@@ -735,6 +870,35 @@ void ClientOnPawnDiedHook(AFortPlayerControllerAthena* PlayerController, FFortPl
 
 			KillerPlayerState->ClientReportKill(PlayerState);
 			KillerPlayerState->OnRep_Kills();
+		}
+
+		if (Globals::bSiphonEnabled && KillerPawn && KillerPawn != DeadPawn)
+		{
+			auto Health = KillerPawn->GetHealth();
+			auto Shield = KillerPawn->GetShield();
+
+			int MaxHealth = 100;
+			int MaxShield = 100;
+			int AmountGiven = 0;
+
+			if ((MaxHealth - Health) > 0)
+			{
+				int AmountToGive = MaxHealth - Health >= 50 ? 50 : MaxHealth - Health;
+				KillerPawn->SetHealth(Health + AmountToGive);
+				AmountGiven += AmountToGive;
+			}
+
+			if ((MaxShield - Shield) > 0 && AmountGiven < 50)
+			{
+				int AmountToGive = MaxShield - Shield >= 50 ? 50 : MaxShield - Shield;
+				AmountToGive -= AmountGiven;
+
+				if (AmountToGive > 0)
+				{
+					KillerPawn->SetShield(Shield + AmountToGive);
+					AmountGiven += AmountToGive;
+				}
+			}
 		}
 
 		if (!GameState->IsRespawningAllowed(PlayerState))
@@ -773,7 +937,7 @@ void ClientOnPawnDiedHook(AFortPlayerControllerAthena* PlayerController, FFortPl
 			GameState->TotalPlayers = Winners.size();
 			GameState->OnRep_PlayersLeft();
 
-			SpawnRebootCard(PlayerController);
+			// SpawnRebootCard(PlayerController);
 		}
 
 		/*
@@ -827,7 +991,7 @@ static void OnDamageServerHook(ABuildingActor* BuildingActor, float Damage, FGam
 	auto Weapon = Cast<AFortWeapon>(DamageCauser);
 
 	if (!BuildingSMActor || !PlayerController || !Pawn || !Weapon || BuildingSMActor->bPlayerPlaced)
-		return;
+		return OnDamageServer(BuildingActor, Damage, DamageTags, Momentum, HitInfo, InstigatedBy, DamageCauser, EffectContext);;
 
 	if (Weapon->WeaponData && Cast<UFortWeaponMeleeItemDefinition>(Weapon->WeaponData))
 	{
@@ -1058,7 +1222,8 @@ void ServerHandlePickupHook(AFortPlayerPawn* Pawn, AFortPickup* Pickup, float In
 			}
 		}
 
-		auto Item = GiveItem(PlayerController, ItemDef, Pickup->PrimaryPickupItemEntry.Count, Pickup->PrimaryPickupItemEntry.LoadedAmmo);
+		auto Item = GiveItem(PlayerController, ItemDef, Pickup->PrimaryPickupItemEntry.Count, Pickup->PrimaryPickupItemEntry.LoadedAmmo, true);
+
 		Update(PlayerController);
 
 		Pickup->PickupLocationData.PickupTarget = Pawn;
@@ -1078,11 +1243,11 @@ static void ServerBeginEditingBuildingActorHook(AFortPlayerControllerAthena* Pla
 	if (!Pawn)
 		return;
 
-	if (Pawn->CurrentWeapon)
+	/* if (Pawn->CurrentWeapon)
 	{
 		if (Pawn->CurrentWeapon->IsA(AFortWeap_BuildingToolBase::StaticClass()))
 			return;
-	}
+	} */
 
 	if (PlayerController && BuildingActorToEdit)
 	{
@@ -1112,6 +1277,8 @@ static void ServerAttemptInventoryDropHook(AFortPlayerControllerAthena* PlayerCo
 
 		if (ItemEntry->Count < Count || !ItemDefinition || !ItemDefinition->bCanBeDropped)
 			return;
+
+		ItemEntry->StateValues.Free();
 
 		if (auto Pickup = SpawnPickup(*ItemEntry, Pawn->K2_GetActorLocation()))
 		{
@@ -1232,4 +1399,44 @@ void GetPlayerViewPointHook(AFortPlayerControllerAthena* PlayerController, FVect
 			Rotation = ViewTarget->K2_GetActorRotation();
 		}
 	}
+}
+
+char SpawnLootHook(ABuildingContainer* BuildingContainer, AFortPlayerPawnAthena* Pawn, int idk, int idk2)
+{
+	BuildingContainer->bAlreadySearched = true;
+	BuildingContainer->OnRep_bAlreadySearched();
+
+	std::cout << "idk: " << idk << '\n';
+	std::cout << "idk2: " << idk2 << '\n';
+
+	auto SearchLootTierGroup = BuildingContainer->SearchLootTierGroup;
+	EFortPickupSpawnSource SpawnSource;
+
+	static auto LootTreasureFName = UKismetStringLibrary::Conv_StringToName(L"Loot_Treasure");
+	static auto Loot_AmmoFName = UKismetStringLibrary::Conv_StringToName(L"Loot_Ammo");
+
+	if (SearchLootTierGroup == LootTreasureFName) // Very bad, we should probably do a loop of all chests and ammo boxes and fix their SearchLootTierGroup.
+	{
+		SearchLootTierGroup = UKismetStringLibrary::Conv_StringToName(L"Loot_AthenaTreasure");
+		SpawnSource = EFortPickupSpawnSource::Chest;
+	}
+
+	if (SearchLootTierGroup == Loot_AmmoFName)
+	{
+		SearchLootTierGroup = UKismetStringLibrary::Conv_StringToName(L"Loot_AthenaAmmoLarge");
+		SpawnSource = EFortPickupSpawnSource::AmmoBox;
+	}
+
+	std::cout << std::format("[{}] {}\n", BuildingContainer->GetName(), SearchLootTierGroup.ToString());
+
+	auto LootDrops = PickLootDrops(SearchLootTierGroup);
+
+	auto CorrectLocation = BuildingContainer->K2_GetActorLocation() + BuildingContainer->GetActorRightVector() * 70.0f + FVector{ 0, 0, 50 }; // + LootSpawnOffset?
+
+	for (auto& LootDrop : LootDrops)
+	{
+		SpawnPickup(LootDrop.ItemDefinition, CorrectLocation, LootDrop.Count, EFortPickupSourceTypeFlag::Container, SpawnSource);
+	}
+
+	return true;
 }
