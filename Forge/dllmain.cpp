@@ -135,6 +135,8 @@ DWORD WINAPI Main(LPVOID)
 
     CREATE_HOOK(PickupDelayHook, PickupDelay);
 
+    CREATE_HOOK(GetMaxTickRateHook, GetMaxTickRate);
+
     static auto HandleStartingNewPlayerFn = UObject::FindObject<UFunction>("/Script/Engine.GameModeBase.HandleStartingNewPlayer");
     HookFunction(DefaultFortGameModeAthena, HandleStartingNewPlayerFn, HandleStartingNewPlayerHook, (PVOID*)&HandleStartingNewPlayer);
 

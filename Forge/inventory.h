@@ -181,6 +181,16 @@ static UFortWorldItem* GiveItem(AFortPlayerControllerAthena* PlayerController, U
                     CurrentEntry.Count += AmountToStack;
                     ReplicatedEntry->Count += AmountToStack;
 
+                    if (bAddToStateValues)
+                    {
+                        FFortItemEntryStateValue StateValue;
+                        StateValue.IntValue = 1;
+                        StateValue.StateType = EFortItemEntryState::ShouldShowItemToast;
+
+                        CurrentEntry.StateValues.Add(StateValue);
+                        ReplicatedEntry->StateValues.Add(StateValue);
+                    }
+
                     PlayerController->WorldInventory->Inventory.MarkItemDirty(*ReplicatedEntry);
                     PlayerController->WorldInventory->Inventory.MarkItemDirty(CurrentEntry);
 
@@ -416,9 +426,9 @@ std::vector<FFortItemEntry> PickLootDrops(FName TierGroupName)
     return LootDrops;
 }
 
-static AFortPickupAthena* SpawnPickup(FFortItemEntry ItemEntry, FVector Location, EFortPickupSourceTypeFlag PickupSource = EFortPickupSourceTypeFlag::Other, EFortPickupSpawnSource SpawnSource = EFortPickupSpawnSource::Unset)
+static AFortPickupAthena* SpawnPickup(FFortItemEntry ItemEntry, FVector Location, EFortPickupSourceTypeFlag PickupSource = EFortPickupSourceTypeFlag::Other, EFortPickupSpawnSource SpawnSource = EFortPickupSpawnSource::Unset, AFortPawn* Pawn = nullptr)
 {
-    auto Pickup = SpawnPickup(ItemEntry.ItemDefinition, Location, ItemEntry.Count, PickupSource, SpawnSource, ItemEntry.LoadedAmmo);
+    auto Pickup = SpawnPickup(ItemEntry.ItemDefinition, Location, ItemEntry.Count, PickupSource, SpawnSource, ItemEntry.LoadedAmmo, Pawn);
     return Pickup;
 }
 
@@ -430,7 +440,7 @@ static bool IsPrimaryQuickbar(UFortItemDefinition* ItemDefinition)
     return false;
 }
 
-static bool IsInventoryFull(AFortPlayerControllerAthena* PlayerController, int Start = 0)
+static bool IsInventoryFull(AFortPlayerControllerAthena* PlayerController, int Start = 0, UFortItemDefinition* CheckIfCanStack = nullptr, int IncomingCount = 0)
 {
     int ItemCounts = Start;
 
@@ -444,6 +454,9 @@ static bool IsInventoryFull(AFortPlayerControllerAthena* PlayerController, int S
             continue;
 
         auto ItemDefinition = ItemInstance->ItemEntry.ItemDefinition;
+
+        if (CheckIfCanStack == ItemDefinition && IncomingCount + ItemInstance->ItemEntry.Count <= ItemDefinition->MaxStackSize)
+            continue;
 
         if (IsPrimaryQuickbar(ItemDefinition))
             ItemCounts++;

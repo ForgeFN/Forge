@@ -745,7 +745,7 @@ static bool OnSameTeam(std::vector<AFortPlayerStateAthena*> Players)
 	return true;
 }
 
-static AFortPickupAthena* SpawnPickup(UFortItemDefinition* ItemDef, FVector Location, int Count, EFortPickupSourceTypeFlag PickupSource = EFortPickupSourceTypeFlag::Other, EFortPickupSpawnSource SpawnSource = EFortPickupSpawnSource::Unset, int LoadedAmmo = -1)
+static AFortPickupAthena* SpawnPickup(UFortItemDefinition* ItemDef, FVector Location, int Count, EFortPickupSourceTypeFlag PickupSource = EFortPickupSourceTypeFlag::Other, EFortPickupSpawnSource SpawnSource = EFortPickupSpawnSource::Unset, int LoadedAmmo = -1, AFortPawn* Pawn = nullptr)
 {
 	if (auto Pickup = GetWorld()->SpawnActor<AFortPickupAthena>(Location, {}))
 	{
@@ -753,9 +753,11 @@ static AFortPickupAthena* SpawnPickup(UFortItemDefinition* ItemDef, FVector Loca
 		Pickup->PrimaryPickupItemEntry.ItemDefinition = ItemDef;
 		Pickup->PrimaryPickupItemEntry.LoadedAmmo = LoadedAmmo;
 
-		Pickup->OnRep_PrimaryPickupItemEntry();
+		// Pickup->OnRep_PrimaryPickupItemEntry();
 
-		Pickup->TossPickup(Location, nullptr, 0, true, PickupSource, SpawnSource);
+		Pickup->PawnWhoDroppedPickup = Pawn;
+
+		Pickup->TossPickup(Location, Pawn, 0, true, PickupSource, SpawnSource);
 
 		if (PickupSource == EFortPickupSourceTypeFlag::Container)
 		{
@@ -763,8 +765,8 @@ static AFortPickupAthena* SpawnPickup(UFortItemDefinition* ItemDef, FVector Loca
 			Pickup->OnRep_TossedFromContainer();
 		}
 
-		Pickup->SetReplicateMovement(true);
-		Pickup->MovementComponent = (UProjectileMovementComponent*)UGameplayStatics::SpawnObject(UProjectileMovementComponent::StaticClass(), Pickup);
+		// Pickup->SetReplicateMovement(true);
+		// Pickup->MovementComponent = (UProjectileMovementComponent*)UGameplayStatics::SpawnObject(UProjectileMovementComponent::StaticClass(), Pickup);
 
 		return Pickup;
 	}

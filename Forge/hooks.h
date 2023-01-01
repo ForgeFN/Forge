@@ -136,9 +136,13 @@ bool ReadyToStartMatchHook(AFortGameModeAthena* GameMode)
 	{
 		aa = true;
 		
+		static auto BusDefinition = UObject::FindObject<UAthenaBattleBusItemDefinition>("/Game/Athena/Items/Cosmetics/BattleBuses/BBID_WorldCupBus.BBID_WorldCupBus");
+
+		GameState->DefaultBattleBus = BusDefinition;
+
 		UFortPlaylistAthena* Playlist = // Globals::bCreative ? UObject::FindObject<UFortPlaylistAthena>("/Game/Athena/Playlists/Creative/Playlist_PlaygroundV2.Playlist_PlaygroundV2") : 
-			UObject::FindObject<UFortPlaylistAthena>("/Game/Athena/Playlists/Playlist_DefaultSolo.Playlist_DefaultSolo");
-			// UObject::FindObject<UFortPlaylistAthena>("/Game/Athena/Playlists/Playground/Playlist_Playground.Playlist_Playground");
+			// UObject::FindObject<UFortPlaylistAthena>("/Game/Athena/Playlists/Playlist_DefaultSolo.Playlist_DefaultSolo");
+			UObject::FindObject<UFortPlaylistAthena>("/Game/Athena/Playlists/Playground/Playlist_Playground.Playlist_Playground");
 		
 		GameState->CurrentPlaylistInfo.BasePlaylist = Playlist;
 		GameState->CurrentPlaylistInfo.OverridePlaylist = Playlist;
@@ -335,6 +339,9 @@ bool ReadyToStartMatchHook(AFortGameModeAthena* GameMode)
 
 		static char (*SpawnLoot)(ABuildingContainer * BuildingContainer, AFortPlayerPawnAthena* Pawn, int idk, int idk2) = decltype(SpawnLoot)(__int64(GetModuleHandleW(0)) + 0x13A91C0);
 		CREATE_HOOK(SpawnLootHook, SpawnLoot);
+
+		static auto LlamaClass = UObject::FindObject<UClass>("/Game/Athena/SupplyDrops/Llama/AthenaSupplyDrop_Llama.AthenaSupplyDrop_Llama_C");
+		std::cout << "NetServerMaxTickRate: " << GetWorld()->NetDriver->NetServerMaxTickRate << '\n';
 	}
 
 	bool ret = ReadyToStartMatch(GameMode); // !Globals::bCreative;
@@ -469,14 +476,14 @@ void HandleStartingNewPlayerHook(AFortGameModeAthena* GameMode, AFortPlayerContr
 	GiveItem(NewPlayer, RoofPiece, 1);
 	Update(NewPlayer);
 
-	GiveItem(NewPlayer, UObject::FindObject<UFortItemDefinition>("/Game/Athena/Items/Weapons/WID_Shotgun_Standard_Athena_SR_Ore_T03.WID_Shotgun_Standard_Athena_SR_Ore_T03"), 1);
+	/* GiveItem(NewPlayer, UObject::FindObject<UFortItemDefinition>("/Game/Athena/Items/Weapons/WID_Shotgun_Standard_Athena_SR_Ore_T03.WID_Shotgun_Standard_Athena_SR_Ore_T03"), 1);
 	GiveItem(NewPlayer, UObject::FindObject<UFortItemDefinition>("/Game/Athena/Items/Weapons/WID_Assault_AutoHigh_Athena_SR_Ore_T03.WID_Assault_AutoHigh_Athena_SR_Ore_T03"), 1);
 	GiveItem(NewPlayer, UObject::FindObject<UFortItemDefinition>("/Game/Athena/Items/Weapons/WID_Pistol_AutoHeavyPDW_Athena_R_Ore_T03.WID_Pistol_AutoHeavyPDW_Athena_R_Ore_T03"), 1);
 	GiveItem(NewPlayer, UObject::FindObject<UFortItemDefinition>("/Game/Athena/Items/Consumables/ShieldSmall/Athena_ShieldSmall.Athena_ShieldSmall"), 6);
 	GiveItem(NewPlayer, UObject::FindObject<UFortItemDefinition>("/Game/Athena/Items/Ammo/AthenaAmmoDataShells.AthenaAmmoDataShells"), 999);
 	GiveItem(NewPlayer, UObject::FindObject<UFortItemDefinition>("/Game/Athena/Items/Ammo/AthenaAmmoDataBulletsMedium.AthenaAmmoDataBulletsMedium"), 999);
 	GiveItem(NewPlayer, UObject::FindObject<UFortItemDefinition>("/Game/Athena/Items/Ammo/AthenaAmmoDataBulletsLight.AthenaAmmoDataBulletsLight"), 999);
-	Update(NewPlayer);
+	Update(NewPlayer); */
 
 	static auto CID = UObject::FindObject<UAthenaCharacterItemDefinition>("/Game/Athena/Items/Cosmetics/Characters/CID_001_Athena_Commando_F_Default.CID_001_Athena_Commando_F_Default");
 	static auto HeadPart = UObject::FindObject<UCustomCharacterPart>("/Game/Characters/CharacterParts/Female/Medium/Heads/F_Med_Head1.F_Med_Head1");
@@ -1477,9 +1484,8 @@ static void ServerAttemptInventoryDropHook(AFortPlayerControllerAthena* PlayerCo
 
 		ItemEntry->StateValues.Free();
 
-		if (auto Pickup = SpawnPickup(*ItemEntry, Pawn->K2_GetActorLocation()))
+		if (auto Pickup = SpawnPickup(*ItemEntry, Pawn->K2_GetActorLocation(), EFortPickupSourceTypeFlag::Player, EFortPickupSpawnSource::Unset, Pawn))
 		{
-			Pickup->PawnWhoDroppedPickup = Pawn;
 			Pickup->PrimaryPickupItemEntry.Count = Count;
 			Pickup->OnRep_PrimaryPickupItemEntry();
 		}
@@ -1530,16 +1536,19 @@ static void HandleReloadCostHook(AFortWeapon* Weapon, int AmountToRemove)
 {
 	auto Pawn = Cast<AFortPlayerPawnAthena>(Weapon->GetOwner());
 
-	if (!Pawn)
+	if (!Pawn || !Weapon)
 		return;
 
 	auto PlayerController = Cast<AFortPlayerControllerAthena>(Pawn->Controller);
 
-	if (!PlayerController || PlayerController->bInfiniteAmmo)
+	if (!PlayerController || !PlayerController->WorldInventory || PlayerController->bInfiniteAmmo)
 		return;
 
 	auto ReplicatedEntry = FindReplicatedEntry(PlayerController, Weapon->ItemEntryGuid);
 	auto InstanceEntry = &FindItemInstance(PlayerController, Weapon->ItemEntryGuid)->ItemEntry;
+
+	if (!ReplicatedEntry || !InstanceEntry)
+		return;
 
 	ReplicatedEntry->LoadedAmmo = Weapon->AmmoCount;
 	InstanceEntry->LoadedAmmo = Weapon->AmmoCount;
@@ -1766,7 +1775,11 @@ static bool ReceiveActorBeginOverlapHook(UObject* Object, UFunction*, void* Para
 	{
 		if (auto Pawn = Cast<AFortPlayerPawnAthena>(OtherActor))
 		{
-			if (Pickup->PawnWhoDroppedPickup != Pawn)
+			auto ItemDefinition = Pickup->PrimaryPickupItemEntry.ItemDefinition;
+
+			if (Pickup->PawnWhoDroppedPickup != Pawn && 
+				(IsPrimaryQuickbar(ItemDefinition)
+					? !IsInventoryFull(Cast<AFortPlayerControllerAthena>(Pawn->Controller), 1, ItemDefinition, Pickup->PrimaryPickupItemEntry.Count) : true))
 			{
 				ServerHandlePickupHook(Pawn, Pickup, 0.4, FVector(), true);
 			}
@@ -1788,7 +1801,7 @@ char PickupDelayHook(AFortPickup* Pickup) // DONT LEAK
 
 	auto PlayerController = Cast<AFortPlayerControllerAthena>(Pawn->Controller);
 
-	if (!PlayerController->WorldInventory)
+	if (!PlayerController || !PlayerController->WorldInventory)
 		return PickupDelay(Pickup);
 
 	std::cout << "Pawn->IncomingPickups.Num(): " << Pawn->IncomingPickups.Num() << '\n';
@@ -1797,7 +1810,7 @@ char PickupDelayHook(AFortPickup* Pickup) // DONT LEAK
 
 	auto ItemDef = CurrentPickup->PrimaryPickupItemEntry.ItemDefinition;
 
-	if (IsPrimaryQuickbar(ItemDef) && IsInventoryFull(PlayerController, 1) && Pawn->CurrentWeapon)
+	if (IsPrimaryQuickbar(ItemDef) && IsInventoryFull(PlayerController, 1, ItemDef, CurrentPickup->PrimaryPickupItemEntry.Count) && Pawn->CurrentWeapon)
 	{
 		auto CurrentItemGuid = CurrentPickup->PickupLocationData.PickupGuid; // Pawn->CurrentWeapon->ItemEntryGuid;
 
@@ -1816,9 +1829,8 @@ char PickupDelayHook(AFortPickup* Pickup) // DONT LEAK
 		{
 			if (ItemEntryToSwap)
 			{
-				auto SwappedPickup = SpawnPickup(*ItemEntry, Pawn->K2_GetActorLocation());
-				SwappedPickup->PawnWhoDroppedPickup = Pawn;
-				RemoveItem(PlayerController, CurrentItemGuid, ItemEntry->Count);
+				auto SwappedPickup = SpawnPickup(*ItemEntryToSwap, Pawn->K2_GetActorLocation(), EFortPickupSourceTypeFlag::Player, EFortPickupSpawnSource::Unset, Pawn);
+				RemoveItem(PlayerController, CurrentItemGuid, ItemEntryToSwap->Count);
 			}
 		}
 	}
@@ -1826,10 +1838,19 @@ char PickupDelayHook(AFortPickup* Pickup) // DONT LEAK
 	auto Item = GiveItem(PlayerController, ItemDef, CurrentPickup->PrimaryPickupItemEntry.Count, CurrentPickup->PrimaryPickupItemEntry.LoadedAmmo, true);
 	Update(PlayerController);
 
-	for (int i = 0; i < Pawn->IncomingPickups.Num(); i++)
+	/* for (int i = 0; i < Pawn->IncomingPickups.Num(); i++)
 	{
 		Pawn->IncomingPickups[i]->PickupLocationData.PickupGuid = Item->ItemEntry.ItemGuid;
-	}
+	} */
 
 	return PickupDelay(Pickup);
+}
+
+float (*GetMaxTickRate)(UGameEngine* Engine, float DeltaTime, bool bAllowFrameRateSmoothing) = decltype(GetMaxTickRate)(__int64(GetModuleHandleW(0)) + 0x3085220);
+
+float GetMaxTickRateHook(UGameEngine* Engine, float DeltaTime, bool bAllowFrameRateSmoothing) // DONT LEAK
+{
+	// auto TickRate = GetMaxTickRate(Engine, DeltaTime, bAllowFrameRateSmoothing);
+	// std::cout << "TickRate: " << TickRate << '\n';
+	return 30;
 }
