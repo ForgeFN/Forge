@@ -699,7 +699,7 @@ static FRotator Rotator(const FQuat& Quaternion)
 	return RotatorFromQuat;
 }
 
-static std::vector<UFortWorldItem*> GetDroppableItems(AFortPlayerControllerAthena* PlayerController, UFortItemDefinition* IgnoreDef = nullptr)
+static std::vector<UFortWorldItem*> GetDroppableItems(AFortPlayerControllerAthena* PlayerController, UFortItemDefinition* IgnoreDef = nullptr, bool bCheckOnDeath = false)
 {
 	std::vector<UFortWorldItem*> DroppableItems;
 
@@ -717,7 +717,7 @@ static std::vector<UFortWorldItem*> GetDroppableItems(AFortPlayerControllerAthen
 			auto ItemEntry = ItemInstance->ItemEntry;
 			auto ItemDefiniton = (UFortWorldItemDefinition*)ItemEntry.ItemDefinition;
 
-			if (ItemInstance->CanBeDropped() && ItemInstance->ItemEntry.ItemDefinition != IgnoreDef)
+			if (ItemInstance->CanBeDropped() && ItemInstance->ItemEntry.ItemDefinition != IgnoreDef && !bCheckOnDeath ? true : ItemDefiniton->bDropOnDeath)
 				DroppableItems.push_back(ItemInstance);
 		}
 	}

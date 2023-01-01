@@ -362,6 +362,31 @@ static void GenericArray_GetHook(void* TargetArray, const FArrayProperty* ArrayP
 	return GenericArray_Get(TargetArray, ArrayProp, Index, Item);
 }
 
+bool CommitExecuteWeaponHook(UObject* Object, UFunction*, void* Parameters)
+{
+	auto Ability = (UFortGameplayAbility*)Object;
+	AFortPawn* Pawn = Ability->GetActivatingPawn();
+
+	if (Pawn)
+	{
+		auto currentWeapon = Pawn->CurrentWeapon;
+
+		if (currentWeapon)
+		{
+			auto Controller = Cast<AFortPlayerControllerAthena>(Pawn->Controller);
+			auto& InstanceEntry = FindItemInstance(Controller, currentWeapon->ItemEntryGuid)->ItemEntry;
+			auto ReplicatedEntry = FindReplicatedEntry(Controller, currentWeapon->ItemEntryGuid);
+
+			InstanceEntry.LoadedAmmo = currentWeapon->AmmoCount;
+			ReplicatedEntry->LoadedAmmo = currentWeapon->AmmoCount;
+			Controller->WorldInventory->Inventory.MarkItemDirty(InstanceEntry);
+			Controller->WorldInventory->Inventory.MarkItemDirty(*ReplicatedEntry);
+		}
+	}
+
+	return false;
+}
+
 void ApplyCID(AFortPlayerStateAthena* PlayerState, UAthenaCharacterItemDefinition* CID)
 {
 	auto& Specializations = CID->HeroDefinition->Specializations;
@@ -413,6 +438,9 @@ void HandleStartingNewPlayerHook(AFortGameModeAthena* GameMode, AFortPlayerContr
 
 		GameState->WarmupCountdownStartTime = TimeSeconds;
 		GameMode->WarmupEarlyCountdownDuration = EarlyDuration;
+
+		static auto CommitExecuteFn = UObject::FindObject<UFunction>("/Game/Abilities/Weapons/Ranged/GA_Ranged_GenericDamage.GA_Ranged_GenericDamage_C.K2_CommitExecute");
+		AddHook(CommitExecuteFn, CommitExecuteWeaponHook);
 	}
 
 	auto PlayerState = Cast<AFortPlayerStateAthena>(NewPlayer->PlayerState);
@@ -1078,7 +1106,7 @@ void ClientOnPawnDiedHook(AFortPlayerControllerAthena* PlayerController, FFortPl
 
 		if (!GameState->IsRespawningAllowed(PlayerState))
 		{
-			auto DroppableItems = GetDroppableItems(PlayerController);
+			auto DroppableItems = GetDroppableItems(PlayerController, nullptr, true);
 
 			for (int i = 0; i < DroppableItems.size(); i++)
 			{
@@ -1392,39 +1420,12 @@ void ServerHandlePickupHook(AFortPlayerPawn* Pawn, AFortPickup* Pickup, float In
 
 	if (Pickup && !Pickup->bPickedUp)
 	{
-		auto ItemDef = Cast<UFortWorldItemDefinition>(Pickup->PrimaryPickupItemEntry.ItemDefinition);
-		auto& ItemInstances = PlayerController->WorldInventory->Inventory.ItemInstances;
-		auto& ReplicatedEntries = PlayerController->WorldInventory->Inventory.ReplicatedEntries;
-
-		if (!ItemDef)
-			return;
-
-		if (IsPrimaryQuickbar(ItemDef) && IsInventoryFull(PlayerController, 1) && Pawn->CurrentWeapon)
-		{
-			auto CurrentItemGuid = Pawn->CurrentWeapon->ItemEntryGuid;
-
-			if (auto ItemInstance = FindItemInstance(PlayerController, CurrentItemGuid))
-			{
-				auto ItemEntry = &ItemInstance->ItemEntry;
-
-				if (ItemEntry->ItemDefinition && ItemInstance->CanBeDropped())
-				{
-					if (ItemEntry)
-					{
-						SpawnPickup(*ItemEntry, Pawn->K2_GetActorLocation());
-						RemoveItem(PlayerController, CurrentItemGuid, ItemEntry->Count);
-					}
-				}
-			}
-		}
-
-		auto Item = GiveItem(PlayerController, ItemDef, Pickup->PrimaryPickupItemEntry.Count, Pickup->PrimaryPickupItemEntry.LoadedAmmo, true);
-
-		Update(PlayerController);
+		Pawn->IncomingPickups.Add(Pickup);
 
 		Pickup->PickupLocationData.PickupTarget = Pawn;
 		Pickup->PickupLocationData.FlyTime = 0.40;
 		Pickup->PickupLocationData.ItemOwner = Pawn;
+		Pickup->PickupLocationData.PickupGuid = Pawn->CurrentWeapon ? Pawn->CurrentWeapon->ItemEntryGuid : FGuid();
 		Pickup->OnRep_PickupLocationData();
 
 		Pickup->bPickedUp = true;
@@ -1748,7 +1749,7 @@ void ProcessEventHook(UObject* Object, UFunction* Function, void* Parameters)
 	return ProcessEvent(Object, Function, Parameters);
 }
 
-void ServerHandlePickupWithSwap(class AFortPickup* Pickup, struct FGuid Swap, float InFlyTime, struct FVector InStartDirection, bool bPlayPickupSound)
+void ServerHandlePickupWithSwap(AFortPickup* Pickup, FGuid Swap, float InFlyTime, FVector InStartDirection, bool bPlayPickupSound)
 {
 
 }
@@ -1776,3 +1777,59 @@ static bool ReceiveActorBeginOverlapHook(UObject* Object, UFunction*, void* Para
 	// return ReceiveActorBeginOverlap(OtherActor);
 }
 
+char (*PickupDelay)(AFortPickup* Pickup) = decltype(PickupDelay)(__int64(GetModuleHandleW(0)) + 0x16F7D10);
+
+char PickupDelayHook(AFortPickup* Pickup) // DONT LEAK
+{
+	auto Pawn = Cast<AFortPlayerPawnAthena>(Pickup->PickupLocationData.PickupTarget);
+
+	if (!Pawn)
+		return PickupDelay(Pickup);
+
+	auto PlayerController = Cast<AFortPlayerControllerAthena>(Pawn->Controller);
+
+	if (!PlayerController->WorldInventory)
+		return PickupDelay(Pickup);
+
+	std::cout << "Pawn->IncomingPickups.Num(): " << Pawn->IncomingPickups.Num() << '\n';
+
+	auto CurrentPickup = Pickup; //  Pawn->IncomingPickups[i];
+
+	auto ItemDef = CurrentPickup->PrimaryPickupItemEntry.ItemDefinition;
+
+	if (IsPrimaryQuickbar(ItemDef) && IsInventoryFull(PlayerController, 1) && Pawn->CurrentWeapon)
+	{
+		auto CurrentItemGuid = CurrentPickup->PickupLocationData.PickupGuid; // Pawn->CurrentWeapon->ItemEntryGuid;
+
+		auto ItemInstanceToSwap = FindItemInstance(PlayerController, CurrentItemGuid);
+
+		if (!ItemInstanceToSwap)
+		{
+			std::cout << "Unable to find item to swap with! Returning and respawning pickup..";
+			SpawnPickup(Pickup->PrimaryPickupItemEntry, Pawn->K2_GetActorLocation());
+			return PickupDelay(Pickup);
+		}
+
+		auto ItemEntryToSwap = &ItemInstanceToSwap->ItemEntry;
+
+		if (ItemEntryToSwap->ItemDefinition && ItemInstanceToSwap->CanBeDropped())
+		{
+			if (ItemEntryToSwap)
+			{
+				auto SwappedPickup = SpawnPickup(*ItemEntry, Pawn->K2_GetActorLocation());
+				SwappedPickup->PawnWhoDroppedPickup = Pawn;
+				RemoveItem(PlayerController, CurrentItemGuid, ItemEntry->Count);
+			}
+		}
+	}
+
+	auto Item = GiveItem(PlayerController, ItemDef, CurrentPickup->PrimaryPickupItemEntry.Count, CurrentPickup->PrimaryPickupItemEntry.LoadedAmmo, true);
+	Update(PlayerController);
+
+	for (int i = 0; i < Pawn->IncomingPickups.Num(); i++)
+	{
+		Pawn->IncomingPickups[i]->PickupLocationData.PickupGuid = Item->ItemEntry.ItemGuid;
+	}
+
+	return PickupDelay(Pickup);
+}

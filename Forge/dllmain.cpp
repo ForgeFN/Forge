@@ -56,6 +56,8 @@ DWORD WINAPI Main(LPVOID)
     FILE* fptr;
     freopen_s(&fptr, "CONOUT$", "w+", stdout);
 
+    SetConsoleTitleA("Forge Server");
+
     std::cout << std::format("Base Address: 0x{:x}\n", __int64(GetModuleHandleW(0)));
 
     UObject::GObjects = decltype(UObject::GObjects)(__int64(GetModuleHandleW(0)) + 0x64a0090);
@@ -130,6 +132,8 @@ DWORD WINAPI Main(LPVOID)
     CREATE_HOOK(rettrue, CollectGarbage);
 
     CREATE_HOOK(ProcessEventHook, ProcessEvent);
+
+    CREATE_HOOK(PickupDelayHook, PickupDelay);
 
     static auto HandleStartingNewPlayerFn = UObject::FindObject<UFunction>("/Script/Engine.GameModeBase.HandleStartingNewPlayer");
     HookFunction(DefaultFortGameModeAthena, HandleStartingNewPlayerFn, HandleStartingNewPlayerHook, (PVOID*)&HandleStartingNewPlayer);
