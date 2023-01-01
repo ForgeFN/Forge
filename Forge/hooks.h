@@ -4,6 +4,16 @@
 
 #include "rebooting.h"
 #include "inventory.h"
+#include <random>
+#include <functional>
+
+static inline std::vector<std::pair<UFunction*, std::function<bool(UObject*, UFunction*, void*)>>> FunctionsToHook;
+
+void AddHook(UFunction* Function, std::function<bool(UObject*, UFunction*, void*)> callback)
+{
+	if (Function)
+		FunctionsToHook.push_back({ Function, callback });
+}
 
 static void ActivateAbility(UAbilitySystemComponent* AbilitySystemComponent, FGameplayAbilitySpecHandle Ability, FPredictionKey PredictionKey, FGameplayEventData* EventData = nullptr)
 {
@@ -59,13 +69,55 @@ static void ServerAbilityRPCBatchHook(UAbilitySystemComponent* AbilitySystemComp
 	return ServerAbilityRPCBatch(AbilitySystemComponent, BatchInfo);
 }
 
+char SpawnLootHook(ABuildingContainer* BuildingContainer, AFortPlayerPawnAthena* Pawn, int idk, int idk2)
+{
+	BuildingContainer->bAlreadySearched = true;
+	BuildingContainer->OnRep_bAlreadySearched();
+
+	std::cout << "idk: " << idk << '\n';
+	std::cout << "idk2: " << idk2 << '\n';
+
+	auto SearchLootTierGroup = BuildingContainer->SearchLootTierGroup;
+	EFortPickupSpawnSource SpawnSource = EFortPickupSpawnSource::Unset;
+
+	static auto LootTreasureFName = UKismetStringLibrary::Conv_StringToName(L"Loot_Treasure");
+	static auto Loot_AmmoFName = UKismetStringLibrary::Conv_StringToName(L"Loot_Ammo");
+
+	if (SearchLootTierGroup == LootTreasureFName) // Very bad, we should probably do a loop of all chests and ammo boxes and fix their SearchLootTierGroup.
+	{
+		SearchLootTierGroup = UKismetStringLibrary::Conv_StringToName(L"Loot_AthenaTreasure");
+		SpawnSource = EFortPickupSpawnSource::Chest;
+	}
+
+	if (SearchLootTierGroup == Loot_AmmoFName)
+	{
+		SearchLootTierGroup = UKismetStringLibrary::Conv_StringToName(L"Loot_AthenaAmmoLarge");
+		SpawnSource = EFortPickupSpawnSource::AmmoBox;
+	}
+
+	std::cout << std::format("[{}] {}\n", BuildingContainer->GetName(), SearchLootTierGroup.ToString());
+
+	auto LootDrops = PickLootDrops(SearchLootTierGroup);
+
+	auto CorrectLocation = BuildingContainer->K2_GetActorLocation() + BuildingContainer->GetActorRightVector() * 70.0f + FVector{ 0, 0, 50 }; // + LootSpawnOffset?
+
+	for (auto& LootDrop : LootDrops)
+	{
+		SpawnPickup(LootDrop.ItemDefinition, CorrectLocation, LootDrop.Count, EFortPickupSourceTypeFlag::Container, SpawnSource);
+	}
+
+	return true;
+}
+
+bool (*ReadyToStartMatch)(AFortGameModeAthena* GameMode);
+
 bool ReadyToStartMatchHook(AFortGameModeAthena* GameMode)
 {
 	if (GetWorld()->OwningGameInstance->LocalPlayers.Num())
 		GetWorld()->OwningGameInstance->LocalPlayers.Remove(0);
 
 	TArray<AActor*> Actors;
-	UGameplayStatics::GetAllActorsOfClass(GetWorld(), AFortPlayerStartWarmup::StaticClass(), &Actors);
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), Globals::bCreative ? AFortPlayerStartCreative::StaticClass() : AFortPlayerStartWarmup::StaticClass(), &Actors);
 
 	int ActorsNum = Actors.Num();
 
@@ -84,8 +136,9 @@ bool ReadyToStartMatchHook(AFortGameModeAthena* GameMode)
 	{
 		aa = true;
 		
-		UFortPlaylistAthena* Playlist = // UObject::FindObject<UFortPlaylistAthena>("/Game/Athena/Playlists/Playlist_DefaultSolo.Playlist_DefaultSolo");
-			UObject::FindObject<UFortPlaylistAthena>("/Game/Athena/Playlists/Playground/Playlist_Playground.Playlist_Playground");
+		UFortPlaylistAthena* Playlist = // Globals::bCreative ? UObject::FindObject<UFortPlaylistAthena>("/Game/Athena/Playlists/Creative/Playlist_PlaygroundV2.Playlist_PlaygroundV2") : 
+			UObject::FindObject<UFortPlaylistAthena>("/Game/Athena/Playlists/Playlist_DefaultSolo.Playlist_DefaultSolo");
+			// UObject::FindObject<UFortPlaylistAthena>("/Game/Athena/Playlists/Playground/Playlist_Playground.Playlist_Playground");
 		
 		GameState->CurrentPlaylistInfo.BasePlaylist = Playlist;
 		GameState->CurrentPlaylistInfo.OverridePlaylist = Playlist;
@@ -95,116 +148,197 @@ bool ReadyToStartMatchHook(AFortGameModeAthena* GameMode)
 		GameState->OnRep_CurrentPlaylistInfo();
 	}
 
-	if (!GameState->MapInfo)
-		return false;
-
-	static UNetDriver* (*CreateNetDriver)(UEngine*, UWorld*, FName) = decltype(CreateNetDriver)((uintptr_t)GetModuleHandleW(0) + 0x347FAF0);
-	static char (*InitListen)(UNetDriver*, void*, FURL&, bool, FString&) = decltype(InitListen)((uintptr_t)GetModuleHandleW(0) + 0x6F5F90);
-	static void (*SetWorld)(UNetDriver*, UWorld*) = decltype(SetWorld)((uintptr_t)GetModuleHandleW(0) + 0x31EDF40);
-
-	GetWorld()->NetDriver = CreateNetDriver(GEngine, GetWorld(), UKismetStringLibrary::Conv_StringToName(L"GameNetDriver"));
-
-	FString Error;
-	auto URL = FURL();
-	URL.Port = 7777;
-	
-	GameMode->GameSession->MaxPlayers = 100;
-
-	GetWorld()->NetDriver->World = GetWorld();
-	GetWorld()->NetDriver->NetDriverName = UKismetStringLibrary::Conv_StringToName(L"GameNetDriver");
-
-	InitListen(GetWorld()->NetDriver, GetWorld(), URL, true, Error);
-	SetWorld(GetWorld()->NetDriver, GetWorld());
-
-	GetWorld()->NetDriver = GetWorld()->NetDriver;
-	GetWorld()->LevelCollections[0].NetDriver = GetWorld()->NetDriver;
-	GetWorld()->LevelCollections[1].NetDriver = GetWorld()->NetDriver;
-
-	GameState->PlayersLeft--;
-	GameState->OnRep_PlayersLeft();
-	GameMode->bWorldIsReady = true; // needed?
-
-	TArray<AActor*> OutActors;
-	UGameplayStatics::GetAllActorsOfClass(GetWorld(), ABuildingItemCollectorActor::StaticClass(), &OutActors);
-
-	for (int i = 0; i < OutActors.Num(); i++)
+	if (!Globals::bCreative)
 	{
-		auto ItemCollector = (ABuildingItemCollectorActor*)OutActors[i];
-
-		auto OverrideLootTierGroup = UKismetStringLibrary::Conv_StringToName(L"Loot_AthenaVending"); // ItemCollector->GetLootTierGroupOverride();
-		auto LootDrops = PickLootDrops(OverrideLootTierGroup);
-
-		for (int z = 0; z < 2/* ItemCollector->ItemCollections.Num() */; z++)
-		{
-			if (z >= LootDrops.size())
-				break;
-
-			auto& LootEntry = LootDrops.at(z);
-
-			ItemCollector->ItemCollections[z].OutputItem = (UFortWorldItemDefinition*)LootEntry.ItemDefinition;
-			ItemCollector->ItemCollections[z].OutputItemEntry.Add(LootEntry);
-			ItemCollector->ItemCollections[z].OverrideOutputItemLootTierGroupName = OverrideLootTierGroup;
-		}
+		if (!GameState->MapInfo)
+			return false;
 	}
-	
-	auto SpawnIsland_FloorLoot = UObject::FindObject<UBlueprintGeneratedClass>("/Game/Athena/Environments/Blueprints/Tiered_Athena_FloorLoot_Warmup.Tiered_Athena_FloorLoot_Warmup_C");
-	auto BRIsland_FloorLoot = UObject::FindObject<UBlueprintGeneratedClass>("/Game/Athena/Environments/Blueprints/Tiered_Athena_FloorLoot_01.Tiered_Athena_FloorLoot_01_C");
-
-	TArray<AActor*> SpawnIsland_FloorLoot_Actors;
-	UGameplayStatics::GetAllActorsOfClass(GetWorld(), SpawnIsland_FloorLoot, &SpawnIsland_FloorLoot_Actors);
-
-	TArray<AActor*> BRIsland_FloorLoot_Actors;
-	UGameplayStatics::GetAllActorsOfClass(GetWorld(), BRIsland_FloorLoot, &BRIsland_FloorLoot_Actors);
-
-	auto SpawnIslandTierGroup = UKismetStringLibrary::Conv_StringToName(L"Loot_AthenaFloorLoot_Warmup");
-	auto BRIslandTierGroup = UKismetStringLibrary::Conv_StringToName(L"Loot_AthenaFloorLoot");
-
-	for (int i = 0; i < SpawnIsland_FloorLoot_Actors.Num(); i++)
+	else
 	{
-		ABuildingContainer* CurrentActor = (ABuildingContainer*)SpawnIsland_FloorLoot_Actors[i];
+		static bool bSkidda = false;
 
-		auto Location = CurrentActor->K2_GetActorLocation();
-		Location.Z += 50;
-
-		std::vector<FFortItemEntry> LootDrops = PickLootDrops(SpawnIslandTierGroup);
-
-		if (LootDrops.size())
+		if (!bSkidda)
 		{
-			for (auto& LootDrop : LootDrops)
-				SpawnPickup(LootDrop, Location, EFortPickupSourceTypeFlag::FloorLoot);
+			bSkidda = true;
+			GetWorld()->SpawnActor<AFortPlayerStartCreative>(FVector(0, 0, 1000000), FRotator());
 		}
 	}
 
-	for (int i = 0; i < BRIsland_FloorLoot_Actors.Num(); i++)
+	static bool bDoOnce = false;
+
+	if (!bDoOnce)
 	{
-		ABuildingContainer* CurrentActor = (ABuildingContainer*)BRIsland_FloorLoot_Actors[i];
+		bDoOnce = true;
 
-		auto Location = CurrentActor->K2_GetActorLocation();
-		Location.Z += 50;
+		static UNetDriver* (*CreateNetDriver)(UEngine*, UWorld*, FName) = decltype(CreateNetDriver)((uintptr_t)GetModuleHandleW(0) + 0x347FAF0);
+		static char (*InitListen)(UNetDriver*, void*, FURL&, bool, FString&) = decltype(InitListen)((uintptr_t)GetModuleHandleW(0) + 0x6F5F90);
+		static void (*SetWorld)(UNetDriver*, UWorld*) = decltype(SetWorld)((uintptr_t)GetModuleHandleW(0) + 0x31EDF40);
 
-		std::vector<FFortItemEntry> LootDrops = PickLootDrops(BRIslandTierGroup);
+		GetWorld()->NetDriver = CreateNetDriver(GEngine, GetWorld(), UKismetStringLibrary::Conv_StringToName(L"GameNetDriver"));
 
-		if (LootDrops.size())
+		FString Error;
+		auto URL = FURL();
+		URL.Port = 7777;
+
+		GameMode->GameSession->MaxPlayers = 100;
+
+		GetWorld()->NetDriver->World = GetWorld();
+		GetWorld()->NetDriver->NetDriverName = UKismetStringLibrary::Conv_StringToName(L"GameNetDriver");
+
+		InitListen(GetWorld()->NetDriver, GetWorld(), URL, true, Error);
+		SetWorld(GetWorld()->NetDriver, GetWorld());
+
+		GetWorld()->NetDriver = GetWorld()->NetDriver;
+		GetWorld()->LevelCollections[0].NetDriver = GetWorld()->NetDriver;
+		GetWorld()->LevelCollections[1].NetDriver = GetWorld()->NetDriver;
+
+		GameState->PlayersLeft--;
+		GameState->OnRep_PlayersLeft();
+		GameMode->bWorldIsReady = true; // needed?
+
+		TArray<AActor*> OutActors;
+		UGameplayStatics::GetAllActorsOfClass(GetWorld(), ABuildingItemCollectorActor::StaticClass(), &OutActors);
+
+		for (int i = 0; i < OutActors.Num(); i++)
 		{
-			for (auto& LootDrop : LootDrops)
-				SpawnPickup(LootDrop, Location, EFortPickupSourceTypeFlag::FloorLoot);
+			auto ItemCollector = (ABuildingItemCollectorActor*)OutActors[i];
+
+			auto OverrideLootTierGroup = UKismetStringLibrary::Conv_StringToName(L"Loot_AthenaVending"); // ItemCollector->GetLootTierGroupOverride();
+			auto LootDrops = PickLootDrops(OverrideLootTierGroup);
+
+			for (int z = 0; z < 2/* ItemCollector->ItemCollections.Num() */; z++)
+			{
+				if (z >= LootDrops.size())
+					break;
+
+				auto& LootEntry = LootDrops.at(z);
+
+				ItemCollector->ItemCollections[z].OutputItem = (UFortWorldItemDefinition*)LootEntry.ItemDefinition;
+				ItemCollector->ItemCollections[z].OutputItemEntry.Add(LootEntry);
+				ItemCollector->ItemCollections[z].OverrideOutputItemLootTierGroupName = OverrideLootTierGroup;
+			}
 		}
+
+		auto SpawnIsland_FloorLoot = UObject::FindObject<UBlueprintGeneratedClass>("/Game/Athena/Environments/Blueprints/Tiered_Athena_FloorLoot_Warmup.Tiered_Athena_FloorLoot_Warmup_C");
+		auto BRIsland_FloorLoot = UObject::FindObject<UBlueprintGeneratedClass>("/Game/Athena/Environments/Blueprints/Tiered_Athena_FloorLoot_01.Tiered_Athena_FloorLoot_01_C");
+
+		TArray<AActor*> SpawnIsland_FloorLoot_Actors;
+		UGameplayStatics::GetAllActorsOfClass(GetWorld(), SpawnIsland_FloorLoot, &SpawnIsland_FloorLoot_Actors);
+
+		TArray<AActor*> BRIsland_FloorLoot_Actors;
+		UGameplayStatics::GetAllActorsOfClass(GetWorld(), BRIsland_FloorLoot, &BRIsland_FloorLoot_Actors);
+
+		auto SpawnIslandTierGroup = UKismetStringLibrary::Conv_StringToName(L"Loot_AthenaFloorLoot_Warmup");
+		auto BRIslandTierGroup = UKismetStringLibrary::Conv_StringToName(L"Loot_AthenaFloorLoot");
+
+		for (int i = 0; i < SpawnIsland_FloorLoot_Actors.Num(); i++)
+		{
+			ABuildingContainer* CurrentActor = (ABuildingContainer*)SpawnIsland_FloorLoot_Actors[i];
+
+			auto Location = CurrentActor->K2_GetActorLocation();
+			Location.Z += 50;
+
+			std::vector<FFortItemEntry> LootDrops = PickLootDrops(SpawnIslandTierGroup);
+
+			if (LootDrops.size())
+			{
+				for (auto& LootDrop : LootDrops)
+					SpawnPickup(LootDrop, Location, EFortPickupSourceTypeFlag::FloorLoot);
+			}
+		}
+
+		for (int i = 0; i < BRIsland_FloorLoot_Actors.Num(); i++)
+		{
+			ABuildingContainer* CurrentActor = (ABuildingContainer*)BRIsland_FloorLoot_Actors[i];
+
+			auto Location = CurrentActor->K2_GetActorLocation();
+			Location.Z += 50;
+
+			std::vector<FFortItemEntry> LootDrops = PickLootDrops(BRIslandTierGroup);
+
+			if (LootDrops.size())
+			{
+				for (auto& LootDrop : LootDrops)
+					SpawnPickup(LootDrop, Location, EFortPickupSourceTypeFlag::FloorLoot);
+			}
+		}
+
+		TArray<AActor*> AllVehicleSpawners;
+		UGameplayStatics::GetAllActorsOfClass(GetWorld(), AFortAthenaVehicleSpawner::StaticClass(), &AllVehicleSpawners);
+
+		for (int i = 0; i < AllVehicleSpawners.Num(); i++)
+		{
+			auto VehicleSpawner = Cast<AFortAthenaVehicleSpawner>(AllVehicleSpawners[i]);
+
+			if (VehicleSpawner)
+			{
+				auto Vehicle = GetWorld()->SpawnActor<AFortAthenaVehicle>(VehicleSpawner->K2_GetActorLocation(), VehicleSpawner->K2_GetActorRotation(), VehicleSpawner->GetVehicleClass());
+			}
+		}
+
+		// we should probably do this on OnBuildingActorInitialized like floor loot
+
+		// they have like 65-70% of spawning but im dumb so idk how to add and openai wont work
+
+		/*
+		{
+			auto TreasureChestMinSpawnPercentCurve = GameState->MapInfo->TreasureChestMinSpawnPercent.Curve;
+			auto TreasureChestMaxSpawnPercentCurve = GameState->MapInfo->TreasureChestMaxSpawnPercent.Curve;
+
+			auto TreasureChestMinSpawnPercent = 65;
+			auto TreasureChestMaxSpawnPercent = 70;
+
+			static auto ChestClass = GameState->MapInfo->TreasureChestClass; // UObject::FindObject<UClass>("/Game/Building/ActorBlueprints/Containers/Tiered_Chest_Athena.Tiered_Chest_Athena_C");
+			TArray<AActor*> AllChests;
+			UGameplayStatics::GetAllActorsOfClass(GetWorld(), ChestClass, &AllChests);
+
+			std::random_device rd;
+			std::mt19937 gen(rd());
+			std::uniform_int_distribution<> dis(1, 100);
+
+			for (int i = 0; i < AllChests.Num(); i++)
+			{
+				auto Chest = (ABuildingContainer*)AllChests[i];
+				int randomPercent = dis(gen);
+
+				if (randomPercent <= TreasureChestMinSpawnPercent && randomPercent >= TreasureChestMaxSpawnPercent) {}
+				else { Chest->K2_DestroyActor(); }
+			}
+		}
+
+		{
+			auto AmmoBoxMinSpawnPercentCurve = GameState->MapInfo->AmmoBoxMinSpawnPercent.Curve;
+			auto AmmoBoxMaxSpawnPercentCurve = GameState->MapInfo->AmmoBoxMaxSpawnPercent.Curve;
+
+			auto AmmoBoxMinSpawnPercent = 65;
+			auto AmmoBoxMaxSpawnPercent = 80;
+
+			static auto AmmoBoxClass = GameState->MapInfo->AmmoBoxClass;
+			TArray<AActor*> AllAmmoBoxes;
+			UGameplayStatics::GetAllActorsOfClass(GetWorld(), AmmoBoxClass, &AllAmmoBoxes);
+
+			std::random_device rd;
+			std::mt19937 gen(rd());
+			std::uniform_int_distribution<> dis(1, 100);
+
+			for (int i = 0; i < AllAmmoBoxes.Num(); i++)
+			{
+				auto AmmoBox = (ABuildingContainer*)AllAmmoBoxes[i];
+				int randomPercent = dis(gen);
+
+				if (randomPercent <= AmmoBoxMinSpawnPercent && randomPercent >= AmmoBoxMaxSpawnPercent) {}
+				else { AmmoBox->K2_DestroyActor(); }
+			}
+		} */
+
+		GameMode->WarmupRequiredPlayerCount = Globals::bMinimumPlayersToDropLS;
+
+		static char (*SpawnLoot)(ABuildingContainer * BuildingContainer, AFortPlayerPawnAthena* Pawn, int idk, int idk2) = decltype(SpawnLoot)(__int64(GetModuleHandleW(0)) + 0x13A91C0);
+		CREATE_HOOK(SpawnLootHook, SpawnLoot);
 	}
 
-	TArray<AActor*> AllVehicleSpawners;
-	UGameplayStatics::GetAllActorsOfClass(GetWorld(), AFortAthenaVehicleSpawner::StaticClass(), &AllVehicleSpawners);
-
-	for (int i = 0; i < AllVehicleSpawners.Num(); i++)
-	{
-		auto VehicleSpawner = Cast<AFortAthenaVehicleSpawner>(AllVehicleSpawners[i]);
-
-		if (VehicleSpawner)
-		{
-			auto Vehicle = GetWorld()->SpawnActor<AFortAthenaVehicle>(VehicleSpawner->K2_GetActorLocation(), VehicleSpawner->K2_GetActorRotation(), VehicleSpawner->GetVehicleClass());
-		}
-	}
-
-	return true;
+	bool ret = ReadyToStartMatch(GameMode); // !Globals::bCreative;
+	return ret;
 }
 
 void ServerAcknowledgePossessionHook(APlayerController* PlayerController, APawn* P)
@@ -285,6 +419,8 @@ void HandleStartingNewPlayerHook(AFortGameModeAthena* GameMode, AFortPlayerContr
 
 	if (!PlayerState)
 		return;
+
+	std::cout << "handlestartingnewpla;yer!\n";
 
 	NewPlayer->bHasServerFinishedLoading = true;
 	NewPlayer->OnRep_bHasServerFinishedLoading();
@@ -392,6 +528,25 @@ void ServerLoadingScreenDroppedHook(AFortPlayerControllerAthena* PlayerControlle
 
 	// static auto LlamaClass = UObject::FindObject<UClass>("/Game/Athena/SupplyDrops/Llama/AthenaSupplyDrop_Llama.AthenaSupplyDrop_Llama_C");
 	// GetWorld()->SpawnActor<AFortAthenaSupplyDrop>(MyFortPawn->K2_GetActorLocation(), FRotator(), LlamaClass);
+
+	auto PlayerState = Cast<AFortPlayerStateAthena>(PlayerController->PlayerState);
+
+	if (PlayerState)
+	{
+		// ApplyCID(PlayerState, PlayerController->GetRandomDefaultAthenaCharacterDefinition(PlayerController->AthenaProfile)); // tddo: move this
+	}
+
+	if (Globals::bCreative)
+	{
+		static auto OtherRiftClass = UObject::FindObject<UBlueprintGeneratedClass>("/Game/Playgrounds/Items/BGA_IslandPortal.BGA_IslandPortal_C");
+
+		std::cout << "OtherRiftClass: " << OtherRiftClass << '\n';
+
+		if (OtherRiftClass && MyFortPawn)
+		{
+			auto Rift = GetWorld()->SpawnActor<AFortAthenaCreativePortal>(MyFortPawn->K2_GetActorLocation(), FRotator(), OtherRiftClass);
+		}
+	}
 
 	return ServerLoadingScreenDropped(PlayerController);
 }
@@ -738,20 +893,40 @@ void ServerAttemptInteractHook(UFortControllerComponent_Interaction* Interaction
 
 					if (VehicleWeaponDef)
 					{
-						int Ammo = 10000;
-						auto VehicleWeaponInstance = GiveItem(Controller, VehicleWeaponDef, 1, Ammo); // Pawn->EquipWeaponDefinition(VehicleWeaponDef, FGuid());
-						Controller->WorldInventory->Inventory.MarkItemDirty(*FindReplicatedEntry(Controller, VehicleWeaponDef));
-						auto VehicleWeapon = Pawn->EquipWeaponDefinition(VehicleWeaponDef, VehicleWeaponInstance->ItemEntry.ItemGuid);
-						int OldAmmoCount = VehicleWeapon->AmmoCount;
-						VehicleWeapon->AmmoCount = Ammo;
-						VehicleWeapon->OnRep_AmmoCount(OldAmmoCount);
+						/*
+						std::cout << "VehicleWeaponDef: " << VehicleWeaponDef->GetFullName() << '\n';
+						int Ammo = INT32_MAX;
+						auto DIE = Pawn->EquipWeaponDefinition(VehicleWeaponDef, FGuid());
+						DIE->AmmoCount = Ammo;
+						DIE->OnRep_AmmoCount(0);
+						
+						auto VehicleWeaponInstance = GiveItem(Controller, VehicleWeaponDef, 1); // Pawn->EquipWeaponDefinition(VehicleWeaponDef, FGuid());
 						Update(Controller);
+						VehicleWeaponInstance->ItemEntry.LoadedAmmo = Ammo;
+						Controller->WorldInventory->Inventory.MarkItemDirty(VehicleWeaponInstance->ItemEntry);
+						auto ReplicatedEntry = FindReplicatedEntry(Controller, VehicleWeaponInstance->ItemEntry.ItemDefinition);
+						ReplicatedEntry->LoadedAmmo = Ammo;
+						Controller->WorldInventory->Inventory.MarkItemDirty(*ReplicatedEntry);
+						ServerExecuteInventoryItemHook(Controller, VehicleWeaponInstance->ItemEntry.ItemGuid);
+						VehicleWeaponInstance->ItemEntry.LoadedAmmo = Ammo;
+						Controller->WorldInventory->Inventory.MarkItemDirty(VehicleWeaponInstance->ItemEntry);
+						auto ReplicatedEntry3 = FindReplicatedEntry(Controller, VehicleWeaponInstance->ItemEntry.ItemDefinition);
+						ReplicatedEntry3->LoadedAmmo = Ammo;
+						Controller->WorldInventory->Inventory.MarkItemDirty(*ReplicatedEntry3);
+						auto Weapon = Pawn->EquipWeaponDefinition((UFortWeaponItemDefinition*)VehicleWeaponInstance->ItemEntry.ItemDefinition, VehicleWeaponInstance->ItemEntry.ItemGuid);
+						VehicleWeaponInstance->ItemEntry.LoadedAmmo = Ammo;
+						Controller->WorldInventory->Inventory.MarkItemDirty(VehicleWeaponInstance->ItemEntry);
+						auto ReplicatedEntry2 = FindReplicatedEntry(Controller, VehicleWeaponInstance->ItemEntry.ItemDefinition);
+						ReplicatedEntry2->LoadedAmmo = Ammo;
+						Controller->WorldInventory->Inventory.MarkItemDirty(*ReplicatedEntry2);
+						Weapon->AmmoCount = Ammo;
+						Weapon->OnRep_AmmoCount(0); */
 					}
 				}
 			}
 		}
 
-		return;
+		// return;
 	}
 
 	/* else if (auto Container = Cast<ABuildingContainer>(ReceivingActor))
@@ -981,6 +1156,27 @@ void ClientOnPawnDiedHook(AFortPlayerControllerAthena* PlayerController, FFortPl
 	}
 
 	return ClientOnPawnDied(PlayerController, DeathReport);
+}
+
+static void (*ReceiveActorEndOverlap)(AActor* Actor, AActor* OtherActor);
+
+static bool ReceiveActorEndOverlapHook(UObject* Object, UFunction*, void* Parameters/* AActor* Actor, AActor* OtherActor */)
+{
+	auto Params = (AActor_ReceiveActorEndOverlap_Params*)Parameters;
+	auto Actor = (AActor*)Object;
+	auto OtherActor = Params->OtherActor;
+
+	if (auto Pickup = Cast<AFortPickup>(Actor))
+	{
+		if (auto Pawn = Cast<AFortPlayerPawnAthena>(OtherActor))
+		{
+			if (Pawn == Pickup->PawnWhoDroppedPickup)
+				Pickup->PawnWhoDroppedPickup = nullptr;
+		}
+	}
+
+	return false;
+	// return ReceiveActorEndOverlap(Actor, OtherActor);
 }
 
 static void OnDamageServerHook(ABuildingActor* BuildingActor, float Damage, FGameplayTagContainer DamageTags, FVector Momentum, FHitResult HitInfo, AController* InstigatedBy, AActor* DamageCauser, FGameplayEffectContextHandle EffectContext)
@@ -1282,6 +1478,7 @@ static void ServerAttemptInventoryDropHook(AFortPlayerControllerAthena* PlayerCo
 
 		if (auto Pickup = SpawnPickup(*ItemEntry, Pawn->K2_GetActorLocation()))
 		{
+			Pickup->PawnWhoDroppedPickup = Pawn;
 			Pickup->PrimaryPickupItemEntry.Count = Count;
 			Pickup->OnRep_PrimaryPickupItemEntry();
 		}
@@ -1401,42 +1598,181 @@ void GetPlayerViewPointHook(AFortPlayerControllerAthena* PlayerController, FVect
 	}
 }
 
-char SpawnLootHook(ABuildingContainer* BuildingContainer, AFortPlayerPawnAthena* Pawn, int idk, int idk2)
+void (*ProcessEvent)(UObject* Object, UFunction* Function, void* Parameters) = decltype(ProcessEvent)((uintptr_t)GetModuleHandleW(0) + 0x22f2990);
+
+void ProcessEventHook(UObject* Object, UFunction* Function, void* Parameters)
 {
-	BuildingContainer->bAlreadySearched = true;
-	BuildingContainer->OnRep_bAlreadySearched();
+	if (!Object || !Function)
+		return;
 
-	std::cout << "idk: " << idk << '\n';
-	std::cout << "idk2: " << idk2 << '\n';
-
-	auto SearchLootTierGroup = BuildingContainer->SearchLootTierGroup;
-	EFortPickupSpawnSource SpawnSource;
-
-	static auto LootTreasureFName = UKismetStringLibrary::Conv_StringToName(L"Loot_Treasure");
-	static auto Loot_AmmoFName = UKismetStringLibrary::Conv_StringToName(L"Loot_Ammo");
-
-	if (SearchLootTierGroup == LootTreasureFName) // Very bad, we should probably do a loop of all chests and ammo boxes and fix their SearchLootTierGroup.
+	if (Globals::bLogProcessEvent)
 	{
-		SearchLootTierGroup = UKismetStringLibrary::Conv_StringToName(L"Loot_AthenaTreasure");
-		SpawnSource = EFortPickupSpawnSource::Chest;
+		auto FunctionName = Function->GetName(); // UKismetSystemLibrary::GetPathName(Function).ToString();
+
+		if (!strstr(FunctionName.c_str(), ("EvaluateGraphExposedInputs")) &&
+			!strstr(FunctionName.c_str(), ("Tick")) &&
+			!strstr(FunctionName.c_str(), ("OnSubmixEnvelope")) &&
+			!strstr(FunctionName.c_str(), ("OnSubmixSpectralAnalysis")) &&
+			!strstr(FunctionName.c_str(), ("OnMouse")) &&
+			!strstr(FunctionName.c_str(), ("Pulse")) &&
+			!strstr(FunctionName.c_str(), ("BlueprintUpdateAnimation")) &&
+			!strstr(FunctionName.c_str(), ("BlueprintPostEvaluateAnimation")) &&
+			!strstr(FunctionName.c_str(), ("BlueprintModifyCamera")) &&
+			!strstr(FunctionName.c_str(), ("BlueprintModifyPostProcess")) &&
+			!strstr(FunctionName.c_str(), ("Loop Animation Curve")) &&
+			!strstr(FunctionName.c_str(), ("UpdateTime")) &&
+			!strstr(FunctionName.c_str(), ("GetMutatorByClass")) &&
+			!strstr(FunctionName.c_str(), ("UpdatePreviousPositionAndVelocity")) &&
+			!strstr(FunctionName.c_str(), ("IsCachedIsProjectileWeapon")) &&
+			!strstr(FunctionName.c_str(), ("LockOn")) &&
+			!strstr(FunctionName.c_str(), ("GetAbilityTargetingLevel")) &&
+			!strstr(FunctionName.c_str(), ("ReadyToEndMatch")) &&
+			!strstr(FunctionName.c_str(), ("ReceiveDrawHUD")) &&
+			!strstr(FunctionName.c_str(), ("OnUpdateDirectionalLightForTimeOfDay")) &&
+			!strstr(FunctionName.c_str(), ("GetSubtitleVisibility")) &&
+			!strstr(FunctionName.c_str(), ("GetValue")) &&
+			!strstr(FunctionName.c_str(), ("InputAxisKeyEvent")) &&
+			!strstr(FunctionName.c_str(), ("ServerTouchActiveTime")) &&
+			!strstr(FunctionName.c_str(), ("SM_IceCube_Blueprint_C")) &&
+			!strstr(FunctionName.c_str(), ("OnHovered")) &&
+			!strstr(FunctionName.c_str(), ("OnCurrentTextStyleChanged")) &&
+			!strstr(FunctionName.c_str(), ("OnButtonHovered")) &&
+			!strstr(FunctionName.c_str(), ("ExecuteUbergraph_ThreatPostProcessManagerAndParticleBlueprint")) &&
+			!strstr(FunctionName.c_str(), "CheckForDancingAtFish") &&
+			!strstr(FunctionName.c_str(), ("UpdateCamera")) &&
+			!strstr(FunctionName.c_str(), ("GetMutatorContext")) &&
+			!strstr(FunctionName.c_str(), ("CanJumpInternal")) &&
+			!strstr(FunctionName.c_str(), ("OnDayPhaseChanged")) &&
+			!strstr(FunctionName.c_str(), ("Chime")) &&
+			!strstr(FunctionName.c_str(), ("ServerMove")) &&
+			!strstr(FunctionName.c_str(), ("OnVisibilitySetEvent")) &&
+			!strstr(FunctionName.c_str(), "ReceiveHit") &&
+			!strstr(FunctionName.c_str(), "ReadyToStartMatch") &&
+			!strstr(FunctionName.c_str(), "ClientAckGoodMove") &&
+			!strstr(FunctionName.c_str(), "Prop_WildWest_WoodenWindmill_01") &&
+			!strstr(FunctionName.c_str(), "ContrailCheck") &&
+			!strstr(FunctionName.c_str(), "B_StockBattleBus_C") &&
+			!strstr(FunctionName.c_str(), "Subtitles.Subtitles_C.") &&
+			!strstr(FunctionName.c_str(), "/PinkOatmeal/PinkOatmeal_") &&
+			!strstr(FunctionName.c_str(), "BP_SpectatorPawn_C") &&
+			!strstr(FunctionName.c_str(), "FastSharedReplication") &&
+			!strstr(FunctionName.c_str(), "OnCollisionHitEffects") &&
+			!strstr(FunctionName.c_str(), "BndEvt__SkeletalMesh") &&
+			!strstr(FunctionName.c_str(), ".FortAnimInstance.AnimNotify_") &&
+			!strstr(FunctionName.c_str(), "OnBounceAnimationUpdate") &&
+			!strstr(FunctionName.c_str(), "ShouldShowSoundIndicator") &&
+			!strstr(FunctionName.c_str(), "Primitive_Structure_AmbAudioComponent_C") &&
+			!strstr(FunctionName.c_str(), "PlayStoppedIdleRotationAudio") &&
+			!strstr(FunctionName.c_str(), "UpdateOverheatCosmetics") &&
+			!strstr(FunctionName.c_str(), "StormFadeTimeline__UpdateFunc") &&
+			!strstr(FunctionName.c_str(), "BindVolumeEvents") &&
+			!strstr(FunctionName.c_str(), "UpdateStateEvent") &&
+			!strstr(FunctionName.c_str(), "VISUALS__UpdateFunc") &&
+			!strstr(FunctionName.c_str(), "Flash__UpdateFunc") &&
+			!strstr(FunctionName.c_str(), "SetCollisionEnabled") &&
+			!strstr(FunctionName.c_str(), "SetIntensity") &&
+			!strstr(FunctionName.c_str(), "Storm__UpdateFunc") &&
+			!strstr(FunctionName.c_str(), "CloudsTimeline__UpdateFunc") &&
+			!strstr(FunctionName.c_str(), "SetRenderCustomDepth") &&
+			!strstr(FunctionName.c_str(), "K2_UpdateCustomMovement") &&
+			!strstr(FunctionName.c_str(), "AthenaHitPointBar_C.Update") &&
+			!strstr(FunctionName.c_str(), "ExecuteUbergraph_Farm_WeatherVane_01") &&
+			!strstr(FunctionName.c_str(), "HandleOnHUDElementVisibilityChanged") &&
+			!strstr(FunctionName.c_str(), "ExecuteUbergraph_Fog_Machine") &&
+			!strstr(FunctionName.c_str(), "ReceiveBeginPlay") &&
+			!strstr(FunctionName.c_str(), "OnMatchStarted") &&
+			!strstr(FunctionName.c_str(), "CustomStateChanged") &&
+			!strstr(FunctionName.c_str(), "OnBuildingActorInitialized") &&
+			!strstr(FunctionName.c_str(), "OnWorldReady") &&
+			!strstr(FunctionName.c_str(), "OnAttachToBuilding") &&
+			!strstr(FunctionName.c_str(), "Clown Spinner") &&
+			!strstr(FunctionName.c_str(), "K2_GetActorLocation") &&
+			!strstr(FunctionName.c_str(), "GetViewTarget") &&
+			!strstr(FunctionName.c_str(), "GetAllActorsOfClass") &&
+			!strstr(FunctionName.c_str(), "OnUpdateMusic") &&
+			!strstr(FunctionName.c_str(), "Check Closest Point") &&
+			!strstr(FunctionName.c_str(), "OnSubtitleChanged__DelegateSignature") &&
+			!strstr(FunctionName.c_str(), "OnServerBounceCallback") &&
+			!strstr(FunctionName.c_str(), "BlueprintGetInteractionTime") &&
+			!strstr(FunctionName.c_str(), "OnServerStopCallback") &&
+			!strstr(FunctionName.c_str(), "Light Flash Timeline__UpdateFunc") &&
+			!strstr(FunctionName.c_str(), "MainFlightPath__UpdateFunc") &&
+			!strstr(FunctionName.c_str(), "PlayStartedIdleRotationAudio") &&
+			!strstr(FunctionName.c_str(), "BGA_Athena_FlopperSpawn_") &&
+			!strstr(FunctionName.c_str(), "CheckShouldDisplayUI") &&
+			!strstr(FunctionName.c_str(), "Timeline_0__UpdateFunc") &&
+			!strstr(FunctionName.c_str(), "ClientMoveResponsePacked") &&
+			!strstr(FunctionName.c_str(), "ExecuteUbergraph_B_Athena_FlopperSpawnWorld_Placement") &&
+			!strstr(FunctionName.c_str(), "Countdown__UpdateFunc") &&
+			!strstr(FunctionName.c_str(), "OnParachuteTrailUpdated") &&
+			!strstr(FunctionName.c_str(), "Moto FadeOut__UpdateFunc") &&
+			!strstr(FunctionName.c_str(), "ExecuteUbergraph_Apollo_GasPump_Valet") &&
+			!strstr(FunctionName.c_str(), "GetOverrideMeshMaterial") &&
+			!strstr(FunctionName.c_str(), "VendWobble__UpdateFunc") &&
+			!strstr(FunctionName.c_str(), "WaitForPawn") &&
+			!strstr(FunctionName.c_str(), "FragmentMovement__UpdateFunc") &&
+			!strstr(FunctionName.c_str(), "TrySetup") &&
+			!strstr(FunctionName.c_str(), "Fade Doused Smoke__UpdateFunc") &&
+			!strstr(FunctionName.c_str(), "SetPlayerToSkydive") &&
+			!strstr(FunctionName.c_str(), "BounceCar__UpdateFunc") &&
+			!strstr(FunctionName.c_str(), "BP_CalendarDynamicPOISelect") &&
+			!strstr(FunctionName.c_str(), "OnComponentHit_Event_0") &&
+			!strstr(FunctionName.c_str(), "HandleSimulatingComponentHit") &&
+			!strstr(FunctionName.c_str(), "CBGA_GreenGlop_WithGrav_C") &&
+			!strstr(FunctionName.c_str(), "WarmupCountdownEndTimeUpdated") &&
+			!strstr(FunctionName.c_str(), "BP_CanInteract") &&
+			!strstr(FunctionName.c_str(), "AthenaHitPointBar_C") &&
+			!strstr(FunctionName.c_str(), "ServerFireAIDirectorEvent") &&
+			!strstr(FunctionName.c_str(), "BlueprintThreadSafeUpdateAnimation") &&
+			!strstr(FunctionName.c_str(), "On Amb Zap Spawn") &&
+			!strstr(FunctionName.c_str(), "ServerSetPlayerCanDBNORevive") &&
+			!strstr(FunctionName.c_str(), "BGA_Petrol_Pickup_C") &&
+			!strstr(FunctionName.c_str(), "GetMutatorsForContextActor") &&
+			!strstr(FunctionName.c_str(), "GetControlRotation") &&
+			!strstr(FunctionName.c_str(), "K2_GetComponentLocation") &&
+			!strstr(FunctionName.c_str(), "MoveFromOffset__UpdateFunc"))
+		{
+			std::cout << ("Function called: ") << FunctionName << '\n';
+		}
 	}
 
-	if (SearchLootTierGroup == Loot_AmmoFName)
+	for (auto& aa : FunctionsToHook)
 	{
-		SearchLootTierGroup = UKismetStringLibrary::Conv_StringToName(L"Loot_AthenaAmmoLarge");
-		SpawnSource = EFortPickupSpawnSource::AmmoBox;
+		if (aa.first == Function)
+		{
+			if (aa.second(Object, Function, Parameters))
+				return;
+		}
 	}
 
-	std::cout << std::format("[{}] {}\n", BuildingContainer->GetName(), SearchLootTierGroup.ToString());
-
-	auto LootDrops = PickLootDrops(SearchLootTierGroup);
-
-	auto CorrectLocation = BuildingContainer->K2_GetActorLocation() + BuildingContainer->GetActorRightVector() * 70.0f + FVector{ 0, 0, 50 }; // + LootSpawnOffset?
-
-	for (auto& LootDrop : LootDrops)
-	{
-		SpawnPickup(LootDrop.ItemDefinition, CorrectLocation, LootDrop.Count, EFortPickupSourceTypeFlag::Container, SpawnSource);
-	}
-
-	return true;
+	return ProcessEvent(Object, Function, Parameters);
 }
+
+void ServerHandlePickupWithSwap(class AFortPickup* Pickup, struct FGuid Swap, float InFlyTime, struct FVector InStartDirection, bool bPlayPickupSound)
+{
+
+}
+
+static void (*ReceiveActorBeginOverlap)(AActor* OtherActor);
+
+static bool ReceiveActorBeginOverlapHook(UObject* Object, UFunction*, void* Parameters)
+{
+	auto Params = (AActor_ReceiveActorBeginOverlap_Params*)Parameters;
+	auto Actor = (AActor*)Object;
+	auto OtherActor = Params->OtherActor;
+
+	if (auto Pickup = Cast<AFortPickup>(Actor))
+	{
+		if (auto Pawn = Cast<AFortPlayerPawnAthena>(OtherActor))
+		{
+			if (Pickup->PawnWhoDroppedPickup != Pawn)
+			{
+				ServerHandlePickupHook(Pawn, Pickup, 0.4, FVector(), true);
+			}
+		}
+	}
+
+	return false;
+	// return ReceiveActorBeginOverlap(OtherActor);
+}
+

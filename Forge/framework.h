@@ -89,14 +89,19 @@ inline APawn* SpawnDefaultPawnForHook(AGameModeBase* GameMode, AController* NewP
 	}
 
 	auto newpawn = GameMode->SpawnDefaultPawnAtTransform(NewPlayer, SpawnTransform);
-	newpawn->bCanBeDamaged = false; // huh respawning
-
-	auto PawnAsAthena = Cast<AFortPlayerPawnAthena>(newpawn);
-
-	if (PawnAsAthena && Controller)
+	std::cout << "newpawn: " << newpawn << '\n';
+	
+	if (newpawn)
 	{
-		PawnAsAthena->CosmeticLoadout = Controller->CosmeticLoadoutPC;
-		PawnAsAthena->OnRep_CosmeticLoadout();
+		newpawn->bCanBeDamaged = false; // huh respawning
+
+		auto PawnAsAthena = Cast<AFortPlayerPawnAthena>(newpawn);
+
+		if (PawnAsAthena && Controller)
+		{
+			PawnAsAthena->CosmeticLoadout = Controller->CosmeticLoadoutPC;
+			PawnAsAthena->OnRep_CosmeticLoadout();
+		}
 	}
 
 	return newpawn;
@@ -117,4 +122,8 @@ inline void RestartServer()
 namespace Globals
 {
 	static inline bool bSiphonEnabled = false;
+	static inline bool bLogProcessEvent = false;
+	static inline bool bCreative = false;
+	static inline bool bLateGame = false;
+	static inline bool bMinimumPlayersToDropLS = 1;
 }

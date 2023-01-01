@@ -63,6 +63,8 @@ inline __int64 GetFunctionIdxOrPtr(UFunction* Function, bool bHookExec = false, 
 {
 	auto NativeAddr = __int64(Function->Func);
 
+	std::cout << std::format("{} Exec: 0x{:x}\n", Function->GetName(), NativeAddr - __int64(GetModuleHandleW(0)));
+
 	if (bHookExec)
 		return NativeAddr;
 
@@ -221,6 +223,8 @@ inline void HookFunction(UObject* DefaultClass, UFunction* Function, void* NewFu
 			}
 
 			*OG = (void*)Thing;
+
+			std::cout << std::format("{} 0x{:x}\n", Function->GetFullName(), Thing - __int64(GetModuleHandleW(0)));
 
 			CREATE_HOOK(NewFunc, *OG);
 		}

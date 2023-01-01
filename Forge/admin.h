@@ -234,7 +234,7 @@ void ServerCheatHook(AFortPlayerControllerAthena* PlayerController, FString Msg)
 			Pawn->bCanBeDamaged = ~Pawn->bCanBeDamaged;
 			SendMessageToConsole(PlayerController, std::wstring(L"God set to " + std::to_wstring(!(bool)Pawn->bCanBeDamaged)).c_str());
 		}
-		else if (Command == "applyge")
+		/* else if (Command == "applyge")
 		{
 			if (Arguments.size() <= 1)
 			{
@@ -271,7 +271,7 @@ void ServerCheatHook(AFortPlayerControllerAthena* PlayerController, FString Msg)
 			{
 				SendMessageToConsole(PlayerController, L"Please provide a valid gameplay effect class!\n");
 			}
-		}
+		} */
 		else if (Command == "freeze")
 		{
 			auto Pawn = Cast<AFortPlayerPawnAthena>(ReceivingController->Pawn);
@@ -400,7 +400,6 @@ cheat bugitgo <X> <Y> <Z> - Teleport to a location.
 cheat sethealth <Health=100.f> - Sets executing player's health.
 cheat setshield <Shield=0.f> - Sets executing player's shield.
 cheat setmaxplayers <MaxPlayers=PlaylistDefault> - Sets the max players that can join. This will not kick anyone, for ex. 20 people in server, but max is 10.
-cheat applyge <GameplayEffectClass> <Level=1.0f> - Gives a gameplay effect to executing player.
 cheat freeze - Toggles freeze.
 cheat listplayers - Gives you all players names.
 cheat suicide - Kills you.
@@ -418,6 +417,7 @@ If you want to execute a command on a certain player, surround their name (case 
 			cheat ban <IP/Player> <Reason> - Bans a player.
 			cheat pardon <IP> - Unbans a player.
 			cheat restartserver - Restarts the server.
+			cheat applyge <GameplayEffectClass> <Level=1.0f> - Gives a gameplay effect to executing player.
 			*/
 
 			SendMessageToConsole(PlayerController, Message.c_str());
