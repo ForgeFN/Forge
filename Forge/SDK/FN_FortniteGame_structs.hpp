@@ -9433,7 +9433,7 @@ struct FProximityBasedGEDeliveryInfoHard : public FProximityBasedGEDeliveryInfoB
 struct FFortAbilitySetDeliveryInfo
 {
 	struct FFortDeliveryInfoRequirementsFilter         DeliveryRequirements;                                     // 0x0000(0x0098) (Edit, DisableEditOnInstance, Protected, NativeAccessSpecifierProtected)
-	TArray<struct TSoftObjectPtr<class UClass>>        AbilitySet;                                      // 0x0098(0x0010) UNKNOWN PROPERTY: ArrayProperty FortniteGame.FortAbilitySetDeliveryInfo.AbilitySets
+	TArray<struct TSoftObjectPtr<class UFortAbilitySet>>        AbilitySets;                                      // 0x0098(0x0010) UNKNOWN PROPERTY: ArrayProperty FortniteGame.FortAbilitySetDeliveryInfo.AbilitySets
 };
 
 // ScriptStruct FortniteGame.FortAbilitySetHandle
@@ -9988,7 +9988,7 @@ struct FFortWorldMarkerData
 	int                                                ItemCount;                                                // 0x0040(0x0004) (BlueprintVisible, BlueprintReadOnly, ZeroConstructor, IsPlainOldData, NoDestructor, HasGetValueTypeHash, NativeAccessSpecifierPublic)
 	unsigned char                                      UnknownData01[0x4];                                       // 0x0044(0x0004) MISSED OFFSET
 	unsigned char                                      UnknownData02[0x28];                                      // 0x0044(0x0028) UNKNOWN PROPERTY: SoftClassProperty FortniteGame.FortWorldMarkerData.MarkedActorClass
-	unsigned char                                      UnknownData03[0x28];                                      // 0x0070(0x0028) UNKNOWN PROPERTY: SoftObjectProperty FortniteGame.FortWorldMarkerData.MarkedActor
+	TSoftObjectPtr<class AActor>                       MarkedActor;               // 0x0070(0x0028) UNKNOWN PROPERTY: SoftObjectProperty FortniteGame.FortWorldMarkerData.MarkedActor
 	bool                                               bHasCustomDisplayInfo;                                    // 0x0098(0x0001) (ZeroConstructor, IsPlainOldData, NoDestructor, HasGetValueTypeHash, NativeAccessSpecifierPrivate)
 	unsigned char                                      UnknownData04[0x7];                                       // 0x0099(0x0007) MISSED OFFSET
 	struct FMarkedActorDisplayInfo                     CustomDisplayInfo;                                        // 0x00A0(0x0068) (NativeAccessSpecifierPrivate)
@@ -10468,7 +10468,7 @@ struct FMapSelectionData
 // 0x0030
 struct FGameplayEffectApplicationInfo
 {
-	unsigned char                                      UnknownData00[0x28];                                      // 0x0000(0x0028) UNKNOWN PROPERTY: SoftClassProperty FortniteGame.GameplayEffectApplicationInfo.GameplayEffect
+	struct TSoftObjectPtr<class UClass>         GameplayEffect;                                  // 0x0000(0x0028) UNKNOWN PROPERTY: SoftClassProperty FortniteGame.GameplayEffectApplicationInfo.GameplayEffect
 	float                                              Level;                                                    // 0x0028(0x0004) (Edit, ZeroConstructor, DisableEditOnInstance, IsPlainOldData, NoDestructor, HasGetValueTypeHash, NativeAccessSpecifierPublic)
 	unsigned char                                      UnknownData01[0x4];                                       // 0x002C(0x0004) MISSED OFFSET
 };

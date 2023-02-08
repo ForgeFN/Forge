@@ -413,6 +413,16 @@ struct FRotator
 	float                                              Pitch;                                                    // 0x0000(0x0004) (Edit, BlueprintVisible, ZeroConstructor, SaveGame, IsPlainOldData, NoDestructor, HasGetValueTypeHash, NativeAccessSpecifierPublic)
 	float                                              Yaw;                                                      // 0x0004(0x0004) (Edit, BlueprintVisible, ZeroConstructor, SaveGame, IsPlainOldData, NoDestructor, HasGetValueTypeHash, NativeAccessSpecifierPublic)
 	float                                              Roll;                                                     // 0x0008(0x0004) (Edit, BlueprintVisible, ZeroConstructor, SaveGame, IsPlainOldData, NoDestructor, HasGetValueTypeHash, NativeAccessSpecifierPublic)
+
+	FORCEINLINE bool operator==(const FRotator& R) const
+	{
+		return Pitch == R.Pitch && Yaw == R.Yaw && Roll == R.Roll;
+	}
+
+	FORCEINLINE bool operator!=(const FRotator& V) const
+	{
+		return Pitch != V.Pitch || Yaw != V.Yaw || Roll != V.Roll;
+	}
 };
 
 // ScriptStruct CoreUObject.Quat

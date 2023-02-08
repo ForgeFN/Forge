@@ -59,6 +59,101 @@ enum IAmADumbass
 	tRUE
 };
 
+
+static bool BasicLocationCheck(AActor* Actor, AActor* OtherActor, float FarthestPossible)
+{
+	if (Actor->GetDistanceTo(OtherActor) > FarthestPossible)
+		return false;
+
+	return true;
+}
+
+inline __int64 GetFunctionIdxOrPtr2(UFunction* Function, bool bHookExec = false)
+{
+	auto NativeAddr = __int64(Function->Func);
+
+	std::cout << std::format("{} Exec: 0x{:x}\n", Function->GetName(), NativeAddr - __int64(GetModuleHandleW(0)));
+
+	if (bHookExec)
+		return NativeAddr;
+
+	std::wstring ValidateWStr = (std::wstring(Function->GetNameFStr().Data) + L"_Validate");
+	const wchar_t* ValidateWCStr = ValidateWStr.c_str();
+	bool bHasValidateFunc = Memcury::Scanner::FindStringRef(ValidateWCStr).Get();
+
+	bool bFoundValidate = !bHasValidateFunc;
+
+	__int64 RetAddr = 0;
+
+	for (int i = 0; i < 2000; i++)
+	{
+		// std::cout << std::format("CURRENT 0x{:x}\n", __int64((uint8_t*)(NativeAddr + i)) - __int64(GetModuleHandleW(0)));
+
+		if (!RetAddr && *(uint8_t*)(NativeAddr + i) == 0xC3)
+		{
+			RetAddr = NativeAddr + i;
+			break;
+		}
+	}
+
+	std::cout << std::format("RETT {}: 0x{:x}\n", Function->GetName(), RetAddr - __int64(GetModuleHandleW(0)));
+
+	int i = 0;
+
+	__int64 functionAddyOrOffset = 0;
+
+	for (__int64 CurrentAddy = RetAddr; CurrentAddy != NativeAddr && i < 2000; CurrentAddy -= 1) // Find last call
+	{
+		// LOG_INFO(LogDev, "[{}] 0x{:x}", i, *(uint8_t*)CurrentAddy);
+
+		/* if (*(uint8_t*)CurrentAddy == 0xE8) // BAD
+		{
+			// LOG_INFO(LogDev, "CurrentAddy 0x{:x}", CurrentAddy - __int64(GetModuleHandleW(0)));
+			functionAddyOrOffset = (CurrentAddy + 1 + 4) + *(int*)(CurrentAddy + 1);
+			break;
+		}
+
+		else */ if ((*(uint8_t*)(CurrentAddy) == 0xFF && *(uint8_t*)(CurrentAddy + 1) == 0x90) ||
+			*(uint8_t*)(CurrentAddy) == 0xFF && *(uint8_t*)(CurrentAddy + 1) == 0x93)
+		{
+			/* if (!bFoundValidate)
+			{
+				bFoundValidate = true;
+				continue;
+			} */
+
+			std::cout << "found vcall!\n";
+
+			auto SecondByte = *(uint8_t*)(CurrentAddy + 2);
+			auto ThirdByte = *(uint8_t*)(CurrentAddy + 3);
+
+			std::string bytes = GetBytes(CurrentAddy + 2, 2);
+
+			std::string last2bytes;
+			last2bytes += bytes[3];
+			last2bytes += bytes[4];
+
+			std::string neww;
+
+			if (last2bytes != "00")
+				neww = last2bytes;
+
+			neww += bytes[0];
+			neww += bytes[1];
+			bytes = neww;
+
+			functionAddyOrOffset = HexToDec(bytes);
+			break;
+		}
+
+		i++;
+	}
+
+	std::cout << "FOUND: " << functionAddyOrOffset << '\n';
+
+	return functionAddyOrOffset;
+ }
+
 inline __int64 GetFunctionIdxOrPtr(UFunction* Function, bool bHookExec = false, IAmADumbass Dumbass = IAmADumbass::NO) // This can return address or index
 {
 	auto NativeAddr = __int64(Function->Func);
@@ -87,6 +182,37 @@ inline __int64 GetFunctionIdxOrPtr(UFunction* Function, bool bHookExec = false, 
 	for (int i = 0; i < 2000; i++)
 	{
 		// LOG_INFO(LogDev, "0x{:x}", *(uint8_t*)(NativeAddr + i));
+
+		if ((*(uint8_t*)(NativeAddr + i) == 0x48 && *(uint8_t*)(NativeAddr + i + 1) == 0xFF && *(uint8_t*)(NativeAddr + i + 2) == 0xA0))
+		{
+			auto SecondByte = *(uint8_t*)(NativeAddr + i + 3);
+			auto ThirdByte = *(uint8_t*)(NativeAddr + i + 4);
+
+			std::string bytes = GetBytes(NativeAddr + i + 3, 2);
+
+			std::string last2bytes;
+			last2bytes += bytes[3];
+			last2bytes += bytes[4];
+
+			std::string neww;
+
+			if (last2bytes != "00")
+				neww = last2bytes;
+
+			neww += bytes[0];
+			neww += bytes[1];
+			bytes = neww;
+
+			// bytes.erase(std::remove(bytes.begin(), bytes.end(), '0'), bytes.end());
+
+			std::cout << Function->GetName() + " Bytes: " << bytes << '\n';
+
+			auto decidx = HexToDec(bytes);
+
+			std::cout << "decidx: " << decidx << '\n';
+
+			return decidx;
+		}
 
 		if ((*(uint8_t*)(NativeAddr + i) == 0xFF && *(uint8_t*)(NativeAddr + i + 1) == 0x90) ||
 			*(uint8_t*)(NativeAddr + i) == 0xFF && *(uint8_t*)(NativeAddr + i + 1) == 0x93)
@@ -139,6 +265,8 @@ inline __int64 GetFunctionIdxOrPtr(UFunction* Function, bool bHookExec = false, 
 
 	__int64 functionAddy = 0;
 
+	std::cout << " not virtual!\n";
+
 	if (RetAddr)
 	{
 		// LOG_INFO(LogDev, "RetAddr 0x{:x}", RetAddr - __int64(GetModuleHandleW(0)));
@@ -178,9 +306,60 @@ inline bool IsBadReadPtr(void* p)
 	return true;
 }
 
-inline void HookFunction(UObject* DefaultClass, UFunction* Function, void* NewFunc, void** OG = nullptr, bool bHookExec = false, __int64 HardcodedOffset = -1, IAmADumbass REAL = IAmADumbass::NO)
+inline void HookCall(uint8_t* instrAddr, uint8_t* targetAddr)
+{
+	int64_t delta = targetAddr - (instrAddr + 5);
+	*(int32_t*)(instrAddr + 1) = static_cast<int32_t>(delta);
+}
+
+inline void UnhookFunction(UObject* DefaultClass, UFunction* Function, void* CurrentHooked, void* OldFunc, bool bHookExec = false, __int64 HardcodedOffset = -1, IAmADumbass REAL = IAmADumbass::NO)
 {
 	auto Thing = HardcodedOffset == -1 ? GetFunctionIdxOrPtr(Function, bHookExec, REAL) : HardcodedOffset;
+
+	if (Thing != -1)
+	{
+		if (IsBadReadPtr((void*)Thing)) // Index
+		{
+			int Idx = Thing / 8;
+
+			// UObject* ClassOfFunction = Function->OuterPrivate;
+			UObject* DefaultObject = DefaultClass; // ClassOfFunction->CreateDefaultObject();
+
+			// LOG_INFO(LogDev, "DefaultObject: {}", DefaultObject->GetPathName());
+
+			if (DefaultObject)
+			{
+				auto og = DefaultObject->VFT[Idx];
+
+				// LOG_INFO(LogDev, "OG: 0x{:x}", __int64(__int64(og) - __int64(GetModuleHandleW(0))));
+
+				DWORD dwProtection;
+				VirtualProtect(DefaultObject->VFT, (Thing + 8), PAGE_EXECUTE_READWRITE, &dwProtection);
+
+				DefaultObject->VFT[Idx] = OldFunc;
+
+				DWORD dwTemp;
+				VirtualProtect(DefaultObject->VFT, (Thing + 8), dwProtection, &dwTemp);
+			}
+		}
+		else // Address
+		{
+			// LOG_INFO(LogDev, "Thing: 0x{:x}", Thing - __int64(GetModuleHandleW(0)));
+
+			void* aa = nullptr;
+
+			std::cout << std::format("{} 0x{:x}\n", Function->GetFullName(), Thing - __int64(GetModuleHandleW(0)));
+
+			REMOVE_HOOK(CurrentHooked, OldFunc);
+		}
+	}
+}
+
+inline void HookFunction(UObject* DefaultClass, UFunction* Function, void* NewFunc, void** OG = nullptr, bool bHookExec = false, __int64 HardcodedOffset = -1, IAmADumbass REAL = IAmADumbass::NO, bool bHookUsingNew = false)
+{
+	// return;
+
+	auto Thing = HardcodedOffset == -1 ? (bHookUsingNew ? GetFunctionIdxOrPtr2(Function, bHookExec) : GetFunctionIdxOrPtr(Function, bHookExec, REAL)) : HardcodedOffset;
 
 	if (Thing != -1)
 	{
@@ -229,6 +408,11 @@ inline void HookFunction(UObject* DefaultClass, UFunction* Function, void* NewFu
 			CREATE_HOOK(NewFunc, *OG);
 		}
 	}
+}
+
+inline void HookFunction2(UObject* DefaultClass, UFunction* Function, void* NewFunc, void** OG = nullptr, bool bHookExec = false, __int64 HardcodedOffset = -1)
+{
+	return HookFunction(DefaultClass, Function, NewFunc, OG, bHookExec, HardcodedOffset, IAmADumbass::NO, true);
 }
 
 #define INV_PI			(0.31830988618f)
@@ -319,7 +503,7 @@ static std::vector<AFortPlayerStateAthena*> GetAlivePlayers()
 	return AlivePlayers;
 }
 
-#define PLATFORM_ENABLE_VECTORINTRINSICS 1
+#define PLATFORM_ENABLE_VECTORINTRINSICS 0
 
 typedef __m128	VectorRegister;
 typedef __m128i VectorRegisterInt;
@@ -511,6 +695,154 @@ static FQuat Quaternion(const FRotator& Rotator)
 #endif
 
 	return RotationQuat;
+}
+
+static FORCEINLINE float InvSqrt(float F)
+{
+	// Performs two passes of Newton-Raphson iteration on the hardware estimate
+	//    v^-0.5 = x
+	// => x^2 = v^-1
+	// => 1/(x^2) = v
+	// => F(x) = x^-2 - v
+	//    F'(x) = -2x^-3
+
+	//    x1 = x0 - F(x0)/F'(x0)
+	// => x1 = x0 + 0.5 * (x0^-2 - Vec) * x0^3
+	// => x1 = x0 + 0.5 * (x0 - Vec * x0^3)
+	// => x1 = x0 + x0 * (0.5 - 0.5 * Vec * x0^2)
+	//
+	// This final form has one more operation than the legacy factorization (X1 = 0.5*X0*(3-(Y*X0)*X0)
+	// but retains better accuracy (namely InvSqrt(1) = 1 exactly).
+
+	const __m128 fOneHalf = _mm_set_ss(0.5f);
+	__m128 Y0, X0, X1, X2, FOver2;
+	float temp;
+
+	Y0 = _mm_set_ss(F);
+	X0 = _mm_rsqrt_ss(Y0);	// 1/sqrt estimate (12 bits)
+	FOver2 = _mm_mul_ss(Y0, fOneHalf);
+
+	// 1st Newton-Raphson iteration
+	X1 = _mm_mul_ss(X0, X0);
+	X1 = _mm_sub_ss(fOneHalf, _mm_mul_ss(FOver2, X1));
+	X1 = _mm_add_ss(X0, _mm_mul_ss(X0, X1));
+
+	// 2nd Newton-Raphson iteration
+	X2 = _mm_mul_ss(X1, X1);
+	X2 = _mm_sub_ss(fOneHalf, _mm_mul_ss(FOver2, X2));
+	X2 = _mm_add_ss(X1, _mm_mul_ss(X1, X2));
+
+	_mm_store_ss(&temp, X2);
+	return temp;
+}
+
+#define VectorLoadAligned( Ptr )		_mm_load_ps( (float*)(Ptr) )
+#define VectorCompareNE( Vec1, Vec2 )			_mm_cmpneq_ps( Vec1, Vec2 )
+#define VectorMaskBits( VecMask )			_mm_movemask_ps( VecMask )
+#define VectorCompareEQ( Vec1, Vec2 )			_mm_cmpeq_ps( Vec1, Vec2 )
+
+FORCEINLINE bool QuatEqual(const FQuat& other, const FQuat& Q)
+{
+#if PLATFORM_ENABLE_VECTORINTRINSICS
+	const VectorRegister A = VectorLoadAligned(&other);
+	const VectorRegister B = VectorLoadAligned(&Q);
+	return VectorMaskBits(VectorCompareEQ(A, B)) == 0x0F;
+#else
+	return other.X == Q.X && other.Y == Q.Y && other.Z == Q.Z && other.W == Q.W;
+#endif // PLATFORM_ENABLE_VECTORINTRINSICS
+}
+
+
+FORCEINLINE bool QuatNotEqual(const FQuat& other, const FQuat& Q)
+{
+#if PLATFORM_ENABLE_VECTORINTRINSICS
+	const VectorRegister A = VectorLoadAligned(&other);
+	const VectorRegister B = VectorLoadAligned(&Q);
+	return VectorMaskBits(VectorCompareNE(A, B)) != 0x00;
+#else
+	return other.X != Q.X || other.Y != Q.Y || other.Z != Q.Z || other.W != Q.W;
+#endif // PLATFORM_ENABLE_VECTORINTRINSICS
+}
+
+#define SMALL_NUMBER		(1.e-8f)
+
+FORCEINLINE VectorRegister VectorDot4(const VectorRegister& Vec1, const VectorRegister& Vec2)
+{
+	VectorRegister Temp1, Temp2;
+	Temp1 = VectorMultiply(Vec1, Vec2);
+	Temp2 = _mm_shuffle_ps(Temp1, Temp1, SHUFFLEMASK(2, 3, 0, 1));	// (Z,W,X,Y).
+	Temp1 = VectorAdd(Temp1, Temp2);								// (X*X + Z*Z, Y*Y + W*W, Z*Z + X*X, W*W + Y*Y)
+	Temp2 = _mm_shuffle_ps(Temp1, Temp1, SHUFFLEMASK(1, 2, 3, 0));	// Rotate left 4 bytes (Y,Z,W,X).
+	return VectorAdd(Temp1, Temp2);								// (X*X + Z*Z + Y*Y + W*W, Y*Y + W*W + Z*Z + X*X, Z*Z + X*X + W*W + Y*Y, W*W + Y*Y + X*X + Z*Z)
+}
+
+#define VectorCompareGE( Vec1, Vec2 )			_mm_cmpge_ps( Vec1, Vec2 )
+#define VectorLoadFloat1( Ptr )			_mm_load1_ps( (float*)(Ptr) )
+
+#define VectorReciprocalSqrt(Vec)		_mm_rsqrt_ps( Vec )
+
+FORCEINLINE VectorRegister VectorReciprocalSqrtAccurate(const VectorRegister& Vec)
+{
+	// Perform two passes of Newton-Raphson iteration on the hardware estimate
+	//    v^-0.5 = x
+	// => x^2 = v^-1
+	// => 1/(x^2) = v
+	// => F(x) = x^-2 - v
+	//    F'(x) = -2x^-3
+
+	//    x1 = x0 - F(x0)/F'(x0)
+	// => x1 = x0 + 0.5 * (x0^-2 - Vec) * x0^3
+	// => x1 = x0 + 0.5 * (x0 - Vec * x0^3)
+	// => x1 = x0 + x0 * (0.5 - 0.5 * Vec * x0^2)
+
+	const VectorRegister OneHalf = FloatOneHalf;
+	const VectorRegister VecDivBy2 = VectorMultiply(Vec, OneHalf);
+
+	// Initial estimate
+	const VectorRegister x0 = VectorReciprocalSqrt(Vec);
+
+	// First iteration
+	VectorRegister x1 = VectorMultiply(x0, x0);
+	x1 = VectorSubtract(OneHalf, VectorMultiply(VecDivBy2, x1));
+	x1 = VectorMultiplyAdd(x0, x1, x0);
+
+	// Second iteration
+	VectorRegister x2 = VectorMultiply(x1, x1);
+	x2 = VectorSubtract(OneHalf, VectorMultiply(VecDivBy2, x2));
+	x2 = VectorMultiplyAdd(x1, x2, x1);
+
+	return x2;
+}
+
+FORCEINLINE void Normalize(FQuat& Quat, float Tolerance = SMALL_NUMBER)
+{
+#if PLATFORM_ENABLE_VECTORINTRINSICS
+	const VectorRegister Vector = VectorLoadAligned(&Quat);
+
+	const VectorRegister SquareSum = VectorDot4(Vector, Vector);
+	const VectorRegister NonZeroMask = VectorCompareGE(SquareSum, VectorLoadFloat1(&Tolerance));
+	const VectorRegister InvLength = VectorReciprocalSqrtAccurate(SquareSum);
+	const VectorRegister NormalizedVector = VectorMultiply(InvLength, Vector);
+	VectorRegister Result = VectorSelect(NonZeroMask, NormalizedVector, Float0001);
+
+	VectorStoreAligned(Result, &Quat);
+#else
+	const float SquareSum = Quat.X * Quat.X + Quat.Y * Quat.Y + Quat.Z * Quat.Z + Quat.W * Quat.W;
+
+	if (SquareSum >= Tolerance)
+	{
+		const float Scale = InvSqrt(SquareSum);
+
+		Quat.X *= Scale;
+		Quat.Y *= Scale;
+		Quat.Z *= Scale;
+		Quat.W *= Scale;
+	}
+	else
+	{
+		Quat = FQuat(0, 0, 0, 1);
+	}
+#endif // PLATFORM_ENABLE_VECTORINTRINSICS
 }
 
 
@@ -747,29 +1079,191 @@ static bool OnSameTeam(std::vector<AFortPlayerStateAthena*> Players)
 
 static AFortPickupAthena* SpawnPickup(UFortItemDefinition* ItemDef, FVector Location, int Count, EFortPickupSourceTypeFlag PickupSource = EFortPickupSourceTypeFlag::Other, EFortPickupSpawnSource SpawnSource = EFortPickupSpawnSource::Unset, int LoadedAmmo = -1, AFortPawn* Pawn = nullptr)
 {
+	auto PlayerState = Pawn ? Cast<AFortPlayerState>(Pawn->PlayerState) : nullptr;
+
 	if (auto Pickup = GetWorld()->SpawnActor<AFortPickupAthena>(Location, {}))
 	{
 		Pickup->PrimaryPickupItemEntry.Count = Count;
 		Pickup->PrimaryPickupItemEntry.ItemDefinition = ItemDef;
 		Pickup->PrimaryPickupItemEntry.LoadedAmmo = LoadedAmmo;
 
-		// Pickup->OnRep_PrimaryPickupItemEntry();
-
+		Pickup->OptionalOwnerID = Pawn ? PlayerState->WorldPlayerId : -1;
 		Pickup->PawnWhoDroppedPickup = Pawn;
+		// Pickup->bCombinePickupsWhenTossCompletes = true;
 
-		Pickup->TossPickup(Location, Pawn, 0, true, PickupSource, SpawnSource);
+		bool bToss = true;
+
+		if (bToss)
+		{
+			PickupSource |= EFortPickupSourceTypeFlag::Tossed;
+		}
+
+		Pickup->TossPickup(Location, Pawn, ItemDef->MaxStackSize, bToss, PickupSource, SpawnSource);
 
 		if (PickupSource == EFortPickupSourceTypeFlag::Container)
 		{
 			Pickup->bTossedFromContainer = true;
 			Pickup->OnRep_TossedFromContainer();
-		}
-
-		// Pickup->SetReplicateMovement(true);
-		// Pickup->MovementComponent = (UProjectileMovementComponent*)UGameplayStatics::SpawnObject(UProjectileMovementComponent::StaticClass(), Pickup);
+		} // crashes if we do this then tosspickup
 
 		return Pickup;
 	}
 
 	return nullptr;
 }
+
+#define VectorLoadFloat3_W0( Ptr )		MakeVectorRegister( ((const float*)(Ptr))[0], ((const float*)(Ptr))[1], ((const float*)(Ptr))[2], 0.0f )
+
+FORCEINLINE VectorRegister VectorTruncate(const VectorRegister& X)
+{
+	return _mm_cvtepi32_ps(_mm_cvttps_epi32(X));
+}
+
+FORCEINLINE VectorRegister VectorDivide(const VectorRegister& Vec1, const VectorRegister& Vec2)
+{
+	return _mm_div_ps(Vec1, Vec2);
+}
+
+FORCEINLINE VectorRegister VectorMod(const VectorRegister& X, const VectorRegister& Y)
+{
+	VectorRegister Temp = VectorTruncate(VectorDivide(X, Y));
+	return VectorSubtract(X, VectorMultiply(Y, Temp));
+}
+
+FORCEINLINE VectorRegister VectorZero(void)
+{
+	return _mm_setzero_ps();
+}
+
+FORCEINLINE void VectorStoreFloat3(const VectorRegister& Vec, void* Ptr)
+{
+	union { VectorRegister v; float f[4]; } Tmp;
+	Tmp.v = Vec;
+	float* FloatPtr = (float*)(Ptr);
+	FloatPtr[0] = Tmp.f[0];
+	FloatPtr[1] = Tmp.f[1];
+	FloatPtr[2] = Tmp.f[2];
+}
+
+FORCEINLINE VectorRegister VectorNormalizeRotator(const VectorRegister& UnnormalizedRotator)
+{
+	// shift in the range [-360,360]
+	VectorRegister V0 = VectorMod(UnnormalizedRotator, Float360);
+	VectorRegister V1 = VectorAdd(V0, Float360);
+	VectorRegister V2 = VectorSelect(VectorCompareGE(V0, VectorZero()), V0, V1);
+
+	// shift to [-180,180]
+	VectorRegister V3 = VectorSubtract(V2, Float360);
+	VectorRegister V4 = VectorSelect(VectorCompareGT(V2, Float180), V3, V2);
+
+	return  V4;
+}
+
+FORCEINLINE void Normalize(FRotator& Rotator)
+{
+#if PLATFORM_ENABLE_VECTORINTRINSICS
+	VectorRegister VRotator = VectorLoadFloat3_W0(&Rotator);
+	VRotator = VectorNormalizeRotator(VRotator);
+	VectorStoreFloat3(VRotator, &Rotator);
+#else
+	Rotator.Pitch = NormalizeAxis(Rotator.Pitch);
+	Rotator.Yaw = NormalizeAxis(Rotator.Yaw);
+	Rotator.Roll = NormalizeAxis(Rotator.Roll);
+#endif
+}
+
+static FRotator GetNormalized(const FRotator& Rotator)
+{
+	FRotator rot = Rotator;
+	Normalize(rot);
+	return rot;
+}
+
+static FQuat GetNormalized(const FQuat& Quat)
+{
+	FQuat quat = Quat;
+	Normalize(quat);
+	return quat;
+}
+
+struct FRotationConversionCache
+{
+	/** Convert a FRotator to FQuat. Uses the cached conversion if possible, and updates it if there was no match. */
+	FORCEINLINE FQuat RotatorToQuat(const FRotator& InRotator) const
+	{
+		if (CachedRotator != InRotator)
+		{
+			CachedRotator = GetNormalized(InRotator);
+			CachedQuat = Quaternion(CachedRotator);
+		}
+		return CachedQuat;
+	}
+
+	/** Convert a FRotator to FQuat. Uses the cached conversion if possible, but does *NOT* update the cache if there was no match. */
+	FORCEINLINE FQuat RotatorToQuat_ReadOnly(const FRotator& InRotator) const
+	{
+		if (CachedRotator == InRotator)
+		{
+			return CachedQuat;
+		}
+		return Quaternion(InRotator);
+	}
+
+	/** Convert a FQuat to FRotator. Uses the cached conversion if possible, and updates it if there was no match. */
+	FORCEINLINE FRotator QuatToRotator(const FQuat& InQuat) const
+	{
+		if (QuatNotEqual(CachedQuat, InQuat))
+		{
+			CachedQuat = GetNormalized(InQuat);
+			CachedRotator = Rotator(CachedQuat);
+		}
+		return CachedRotator;
+	}
+
+	/** Convert a FQuat to FRotator. Uses the cached conversion if possible, but does *NOT* update the cache if there was no match. */
+	FORCEINLINE FRotator QuatToRotator_ReadOnly(const FQuat& InQuat) const
+	{
+		if (QuatEqual(CachedQuat, InQuat))
+		{
+			return CachedRotator;
+		}
+		return Rotator(InQuat);
+	}
+
+	/** Version of QuatToRotator when the Quat is known to already be normalized. */
+	FORCEINLINE FRotator NormalizedQuatToRotator(const FQuat& InNormalizedQuat) const
+	{
+		if (QuatNotEqual(CachedQuat, InNormalizedQuat))
+		{
+			CachedQuat = InNormalizedQuat;
+			CachedRotator = Rotator(InNormalizedQuat);
+		}
+		return CachedRotator;
+	}
+
+	/** Version of QuatToRotator when the Quat is known to already be normalized. Does *NOT* update the cache if there was no match. */
+	FORCEINLINE FRotator NormalizedQuatToRotator_ReadOnly(const FQuat& InNormalizedQuat) const
+	{
+		if (QuatEqual(CachedQuat, InNormalizedQuat))
+		{
+			return CachedRotator;
+		}
+		return Rotator(InNormalizedQuat);
+	}
+
+	/** Return the cached Quat. */
+	FORCEINLINE FQuat GetCachedQuat() const
+	{
+		return CachedQuat;
+	}
+
+	/** Return the cached Rotator. */
+	FORCEINLINE FRotator GetCachedRotator() const
+	{
+		return CachedRotator;
+	}
+
+private:
+	mutable FQuat		CachedQuat;		// FQuat matching CachedRotator such that CachedQuat.Rotator() == CachedRotator.
+	mutable FRotator	CachedRotator;	// FRotator matching CachedQuat such that CachedRotator.Quaternion() == CachedQuat.
+};

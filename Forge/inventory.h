@@ -2,7 +2,7 @@
 
 #include "framework.h"
 
-static FFortItemEntry* FindReplicatedEntry(AFortPlayerControllerAthena* PlayerController, const FGuid& Item)
+static FFortItemEntry* FindReplicatedEntry(AFortPlayerController* PlayerController, const FGuid& Item)
 {
 	for (int i = 0; i < PlayerController->WorldInventory->Inventory.ReplicatedEntries.Num(); i++)
 	{
@@ -13,30 +13,25 @@ static FFortItemEntry* FindReplicatedEntry(AFortPlayerControllerAthena* PlayerCo
 	return nullptr;
 }
 
-static FFortItemEntry* FindReplicatedEntry(AFortPlayerControllerAthena* PlayerController, UFortItemDefinition* ItemDef)
+
+static AFortPickupAthena* SpawnPickup(FFortItemEntry ItemEntry, FVector Location, EFortPickupSourceTypeFlag PickupSource = EFortPickupSourceTypeFlag::Other, EFortPickupSpawnSource SpawnSource = EFortPickupSpawnSource::Unset, AFortPawn* Pawn = nullptr)
 {
-    if (!PlayerController->WorldInventory)
-        return nullptr;
-
-    for (int i = 0; i < PlayerController->WorldInventory->Inventory.ReplicatedEntries.Num(); i++)
-    {
-        if (PlayerController->WorldInventory->Inventory.ReplicatedEntries[i].ItemDefinition == ItemDef)
-            return &PlayerController->WorldInventory->Inventory.ReplicatedEntries[i];
-    }
-
-    return nullptr;
+    auto Pickup = SpawnPickup(ItemEntry.ItemDefinition, Location, ItemEntry.Count, PickupSource, SpawnSource, ItemEntry.LoadedAmmo, Pawn);
+    return Pickup;
 }
 
-static void Update(AFortPlayerControllerAthena* PlayerController)
+static void Update(AFortPlayerController* PlayerController, bool bMarkArrayDirty = true)
 {
 	if (PlayerController->WorldInventory)
 	{
-		PlayerController->WorldInventory->HandleInventoryLocalUpdate();
-		PlayerController->WorldInventory->Inventory.MarkArrayDirty();
+		PlayerController->WorldInventory->HandleInventoryLocalUpdate(); // is this only needed for adding items?
+
+        if (bMarkArrayDirty)
+		    PlayerController->WorldInventory->Inventory.MarkArrayDirty();
 	}
 }
 
-static UFortWorldItem* FindItemInstance(AFortPlayerControllerAthena* PlayerController, UFortItemDefinition* ItemDef)
+static UFortWorldItem* FindItemInstance(AFortPlayerController* PlayerController, UFortItemDefinition* ItemDef)
 {
     if (!PlayerController->WorldInventory)
         return nullptr;
@@ -53,7 +48,7 @@ static UFortWorldItem* FindItemInstance(AFortPlayerControllerAthena* PlayerContr
 }
 
 
-static UFortWorldItem* FindItemInstance(AFortPlayerControllerAthena* PlayerController, const FGuid& Item)
+static UFortWorldItem* FindItemInstance(AFortPlayerController* PlayerController, const FGuid& Item)
 {
     if (!PlayerController->WorldInventory)
         return nullptr;
@@ -69,10 +64,13 @@ static UFortWorldItem* FindItemInstance(AFortPlayerControllerAthena* PlayerContr
     return nullptr;
 }
 
-static void RemoveItem(AFortPlayerControllerAthena* PlayerController, FGuid Item, int Count)
+static void RemoveItem(AFortPlayerController* PlayerController, FGuid Item, int Count, bool bFromReload = false, bool* bShouldUpdate = nullptr)
 {
     if (!PlayerController || !PlayerController->WorldInventory)
         return;
+
+    if (bShouldUpdate)
+        *bShouldUpdate = false;
 
     auto ItemInstance = FindItemInstance(PlayerController, Item);
     auto ReplicatedEntry = FindReplicatedEntry(PlayerController, Item);
@@ -82,9 +80,13 @@ static void RemoveItem(AFortPlayerControllerAthena* PlayerController, FGuid Item
     if (ItemInstance && ReplicatedEntry)
     {
         auto NewCount = ReplicatedEntry->Count - Count;
+        auto ItemDefinition = Cast<UFortWorldItemDefinition>(ReplicatedEntry->ItemDefinition);
 
-        if (NewCount > 0)
+        if (NewCount > 0 || (ItemDefinition && ItemDefinition->bPersistInInventoryWhenFinalStackEmpty && bFromReload))
         {
+            if (ItemDefinition && ItemDefinition->bPersistInInventoryWhenFinalStackEmpty && bFromReload)
+                NewCount = NewCount < 0 ? 0 : NewCount;
+
             ItemInstance->ItemEntry.Count = NewCount;
             ReplicatedEntry->Count = NewCount;
 
@@ -100,10 +102,11 @@ static void RemoveItem(AFortPlayerControllerAthena* PlayerController, FGuid Item
                 if (!ItemInstance)
                     continue;
 
-                auto CurrentGuid = ItemInstance->GetItemGuid();
+                auto CurrentGuid = ItemInstance->ItemEntry.ItemGuid;
 
                 if (CurrentGuid == Item)
                 {
+                    ItemInstance->ItemEntry.StateValues.Free();
                     ItemInstances->Remove(i);
                     break;
                 }
@@ -116,33 +119,120 @@ static void RemoveItem(AFortPlayerControllerAthena* PlayerController, FGuid Item
 
                 if (CurrentGuid == Item)
                 {
+                    Entry.StateValues.Free();
                     ReplicatedEntries->Remove(i);
                     break;
                 }
             }
+
+            auto Pawn = PlayerController->MyFortPawn;
+
+            if (Pawn)
+            {
+                for (int i = 0; i < Pawn->CurrentWeaponList.Num(); i++)
+                {
+                    auto CurrentWeaponInList = Pawn->CurrentWeaponList[i];
+
+                    if (CurrentWeaponInList->ItemEntryGuid == Item)
+                    {
+                        CurrentWeaponInList->K2_DestroyActor(); // ?
+                        Pawn->CurrentWeaponList.Remove(i);
+                        // break;
+                    }
+                }
+            }
+
+            if (bShouldUpdate)
+                *bShouldUpdate = true;
         }
     }
 }
 
-static int GetClipSize(UFortWeaponItemDefinition* WeaponDef)
+static bool RemoveItem(AFortPlayerController* PlayerController, UFortItemDefinition* ItemDefinition, int Count = 1, bool* bShouldUpdate = nullptr)
 {
-    if (!WeaponDef)
-        return 0;
+    auto ItemInstance = FindItemInstance(PlayerController, ItemDefinition);
 
-    auto Table = WeaponDef->WeaponStatHandle.DataTable;
+    if (!ItemInstance)
+        return false;
 
-    if (!Table)
-        return 0;
+    RemoveItem(PlayerController, ItemInstance->ItemEntry.ItemGuid, Count, bShouldUpdate);
 
-    auto Row = (FFortRangedWeaponStats*)Table->RowMap[WeaponDef->WeaponStatHandle.RowName];
-
-    if (!Row)
-        return 0;
-
-    return Row->ClipSize;
+    return true;
 }
 
-static UFortWorldItem* GiveItem(AFortPlayerControllerAthena* PlayerController, UFortItemDefinition* ItemDef, int Count, int LoadedAmmo = -1, bool bAddToStateValues = false)
+void ModifyCount(AFortPlayerController* PlayerController, UFortWorldItem* ItemInstance, int New, bool bRemove = false, std::pair<FFortItemEntry*, FFortItemEntry*>* outEntries = nullptr, bool bUpdate = true)
+{
+    auto ReplicatedEntry = FindReplicatedEntry(PlayerController, ItemInstance->ItemEntry.ItemGuid);
+
+    if (!ReplicatedEntry)
+        return;
+
+    if (!bRemove)
+    {
+        ItemInstance->ItemEntry.Count += New;
+        ReplicatedEntry->Count += New;
+    }
+    else
+    {
+        ItemInstance->ItemEntry.Count -= New;
+        ReplicatedEntry->Count -= New;
+    }
+
+    if (outEntries)
+        *outEntries = { &ItemInstance->ItemEntry, ReplicatedEntry };
+
+    if (bUpdate || !outEntries)
+    {
+        PlayerController->WorldInventory->Inventory.MarkItemDirty(ItemInstance->ItemEntry);
+        PlayerController->WorldInventory->Inventory.MarkItemDirty(*ReplicatedEntry);
+    }
+
+}
+
+UFortWorldItem* CreateAndGiveItem(AFortPlayerController* PlayerController, UFortItemDefinition* ItemDef, int Count, int LoadedAmmo = -1, bool bAddToStateValues = false, bool* outUpdate = nullptr)
+{
+    if (outUpdate)
+        *outUpdate = false;
+
+    UFortWorldItem* ItemInstance = Cast<UFortWorldItem>(ItemDef->CreateTemporaryItemInstanceBP(Count, 1));
+
+    if (!ItemInstance)
+        return nullptr;
+
+    if (LoadedAmmo < 0)
+    {
+        if (auto WeaponDef = Cast<UFortWeaponItemDefinition>(ItemDef))
+            LoadedAmmo = GetClipSize(WeaponDef);
+        else
+            LoadedAmmo = 0;
+    }
+
+    auto& ItemInstances = PlayerController->WorldInventory->Inventory.ItemInstances;
+
+    ItemInstance->ItemEntry.Count = Count;
+    ItemInstance->ItemEntry.LoadedAmmo = LoadedAmmo;
+    ItemInstance->SetOwningControllerForTemporaryItem(PlayerController);
+
+    if (bAddToStateValues)
+    {
+        FFortItemEntryStateValue StateValue;
+        StateValue.IntValue = 1;
+        StateValue.StateType = EFortItemEntryState::ShouldShowItemToast;
+
+        ItemInstance->ItemEntry.StateValues.Add(StateValue);
+    }
+
+    ItemInstances.Add(ItemInstance);
+    auto& ReplicatedEntry = PlayerController->WorldInventory->Inventory.ReplicatedEntries.Add(ItemInstance->ItemEntry);
+    ReplicatedEntry.LoadedAmmo = LoadedAmmo;
+
+    if (outUpdate)
+        *outUpdate = true;
+
+    return ItemInstance;
+}
+
+static UFortWorldItem* GiveItem(AFortPlayerController* PlayerController, UFortItemDefinition* ItemDef, int Count, int LoadedAmmo = -1, bool bAddToStateValues = false, bool* bShouldUpdate = nullptr)
 {
     if (LoadedAmmo == -1)
     {
@@ -159,20 +249,30 @@ static UFortWorldItem* GiveItem(AFortPlayerControllerAthena* PlayerController, U
     UFortWorldItem* StackingItemInstance = nullptr;
     int OverStack = 0;
 
+    if (bShouldUpdate)
+        *bShouldUpdate = false;
+
+    // bAddToStateValues = false;
+
     if (MaxStackSize > 1)
     {
         for (int i = 0; i < ItemInstances.Num(); i++)
         {
             auto CurrentItemInstance = ItemInstances[i];
-            auto CurrentEntry = CurrentItemInstance->ItemEntry;
+            auto& CurrentEntry = CurrentItemInstance->ItemEntry;
 
             if (CurrentEntry.ItemDefinition == ItemDef)
             {
-                if (CurrentEntry.Count < MaxStackSize)
+                if (CurrentEntry.Count < MaxStackSize || !bAllowMultipleStacks)
                 {
                     StackingItemInstance = CurrentItemInstance;
 
                     OverStack = CurrentEntry.Count + Count - MaxStackSize;
+
+                    if (!bAllowMultipleStacks && !(CurrentEntry.Count < MaxStackSize))
+                    {
+                        break;
+                    }
 
                     int AmountToStack = OverStack > 0 ? Count - OverStack : Count;
 
@@ -180,6 +280,8 @@ static UFortWorldItem* GiveItem(AFortPlayerControllerAthena* PlayerController, U
 
                     CurrentEntry.Count += AmountToStack;
                     ReplicatedEntry->Count += AmountToStack;
+
+                    std::cout << std::format("{} : {} : {}\n", CurrentEntry.Count, ReplicatedEntry->Count, OverStack);
 
                     if (bAddToStateValues)
                     {
@@ -190,28 +292,56 @@ static UFortWorldItem* GiveItem(AFortPlayerControllerAthena* PlayerController, U
                         CurrentEntry.StateValues.Add(StateValue);
                         ReplicatedEntry->StateValues.Add(StateValue);
                     }
+                    else
+                    {
+                        // CurrentEntry.StateValues.FreeBAD();
+                        // ReplicatedEntry->StateValues.FreeBAD();
+                    }
 
-                    PlayerController->WorldInventory->Inventory.MarkItemDirty(*ReplicatedEntry);
                     PlayerController->WorldInventory->Inventory.MarkItemDirty(CurrentEntry);
+                    PlayerController->WorldInventory->Inventory.MarkItemDirty(*ReplicatedEntry);
 
                     if (OverStack <= 0)
                         return StackingItemInstance;
 
-                    break;
+                    // break;
                 }
             }
         }
     }
 
-    if (!bAllowMultipleStacks && StackingItemInstance)
+    // if (!bAllowMultipleStacks && StackingItemInstance)
+       // return nullptr;
+
+    Count = OverStack > 0 ? OverStack : Count;
+
+    if (OverStack > 0 && !ItemDef->bAllowMultipleStacks)
+    {
+        auto Pawn = PlayerController->MyFortPawn;
+
+        if (!Pawn)
+            return nullptr;
+
+        FFortItemEntry itemEntry;
+        itemEntry.Count = Count;
+        itemEntry.ItemDefinition = ItemDef;
+
+        SpawnPickup(itemEntry, Pawn->K2_GetActorLocation(), EFortPickupSourceTypeFlag::Player, EFortPickupSpawnSource::Unset, Pawn);
         return nullptr;
+    }
 
-	UFortWorldItem* ItemInstance = nullptr;
+    std::cout << std::format("Creating new item for: {} OverStack: {} AllowMultipleStacks: {}\n", ItemDef->GetFullName(), OverStack, (int)ItemDef->bAllowMultipleStacks);
 
-	ItemInstance = Cast<UFortWorldItem>(ItemDef->CreateTemporaryItemInstanceBP(Count, 1));
+	UFortWorldItem* ItemInstance = CreateAndGiveItem(PlayerController, ItemDef, Count, LoadedAmmo, bAddToStateValues, bShouldUpdate);
+
+	/* ItemInstance = Cast<UFortWorldItem>(ItemDef->CreateTemporaryItemInstanceBP(Count, 1));
 
 	if (ItemInstance)
 	{
+		ItemInstance->ItemEntry.Count = Count;
+		ItemInstance->ItemEntry.LoadedAmmo = LoadedAmmo;
+		ItemInstance->SetOwningControllerForTemporaryItem(PlayerController);
+
         if (bAddToStateValues)
         {
             FFortItemEntryStateValue StateValue;
@@ -221,14 +351,13 @@ static UFortWorldItem* GiveItem(AFortPlayerControllerAthena* PlayerController, U
             ItemInstance->ItemEntry.StateValues.Add(StateValue);
         }
 
-		ItemInstance->ItemEntry.Count = Count;
-		ItemInstance->ItemEntry.LoadedAmmo = LoadedAmmo;
-		ItemInstance->SetOwningControllerForTemporaryItem(PlayerController);
-
 		ItemInstances.Add(ItemInstance);
 		auto& ReplicatedEntry = PlayerController->WorldInventory->Inventory.ReplicatedEntries.Add(ItemInstance->ItemEntry);
         ReplicatedEntry.LoadedAmmo = LoadedAmmo;
-	}
+
+        if (bShouldUpdate)
+            *bShouldUpdate = true;
+	} */
 
 	return ItemInstance;
 }
@@ -252,7 +381,7 @@ static FFortLootTierData* GetLootTierData(std::vector<FFortLootTierData*>& LootT
             break;
         }
 
-        RandomNumber = RandomNumber - Item->Weight;
+        RandomNumber -= Item->Weight;
     }
 
     if (!SelectedItem)
@@ -280,7 +409,7 @@ static FFortLootPackageData* GetLootPackage(std::vector<FFortLootPackageData*>& 
             break;
         }
 
-        RandomNumber = RandomNumber - Item->Weight;
+        RandomNumber -= Item->Weight;
     }
 
     if (!SelectedItem)
@@ -289,88 +418,220 @@ static FFortLootPackageData* GetLootPackage(std::vector<FFortLootPackageData*>& 
     return SelectedItem;
 }
 
-std::vector<FFortItemEntry> PickLootDrops(FName TierGroupName)
+std::vector<FFortItemEntry> PickLootDrops(FName TierGroupName, bool bPrint = false, int recursive = 0)
 {
-	/* /auto TierGroupNameWStr = std::wstring(TierGroupName.begin(), TierGroupName.end());
+    std::vector<FFortItemEntry> LootDrops;
+
+    if (recursive >= 5)
+    {
+        std::cout << "Hit recursive limit for: " << TierGroupName.ToString() << '\n';
+        return LootDrops;
+    }
+
+	/* auto TierGroupNameWStr = std::wstring(TierGroupName.begin(), TierGroupName.end());
 	auto TierGroupNameWCStr = TierGroupNameWStr.c_str();
 	FString TierGroupNameFStr = TierGroupNameWCStr; */
     auto TierGroupFName = TierGroupName; // UKismetStringLibrary::StaticClass()->CreateDefaultObject< UKismetStringLibrary>()->Conv_StringToName(TierGroupNameFStr);
 
-    static auto LTD = Cast<AFortGameStateAthena>(GetWorld()->GameState)->CurrentPlaylistInfo.BasePlaylist->LootTierData.Get();
-    static UDataTable* LP = Cast<AFortGameStateAthena>(GetWorld()->GameState)->CurrentPlaylistInfo.BasePlaylist->LootPackages.Get();
+    static std::vector<UDataTable*> LTDTables;
+    static std::vector<UDataTable*> LPTables;
 
-    if (!LTD)
-        LTD = UObject::FindObject<UDataTable>("/Game/Items/Datatables/AthenaLootTierData_Client.AthenaLootTierData_Client");
+    static bool skidd = false;
 
-    if (!LP)
-        LP = UObject::FindObject<UDataTable>("/Game/Items/Datatables/AthenaLootPackages_Client.AthenaLootPackages_Client");
+    if (!skidd)
+    {
+        skidd = true;
 
-    auto& LTDRowMap = LTD->RowMap;
+        auto GameState = (AFortGameStateAthena*)GetWorld()->GameState;
 
-    std::vector<FFortItemEntry> LootDrops;
+        auto MainLTD = GameState->CurrentPlaylistInfo.BasePlaylist ? GameState->CurrentPlaylistInfo.BasePlaylist->LootTierData.Get() : nullptr;
+        auto MainLP = GameState->CurrentPlaylistInfo.BasePlaylist ? GameState->CurrentPlaylistInfo.BasePlaylist->LootPackages.Get() : nullptr;
+     
+        if (!MainLTD)
+            MainLTD = UObject::FindObject<UDataTable>("/Game/Items/Datatables/AthenaLootTierData_Client.AthenaLootTierData_Client");
+
+        if (!MainLP)
+            MainLP = (UCompositeDataTable*)UObject::FindObject<UDataTable>("/Game/Items/Datatables/AthenaLootPackages_Client.AthenaLootPackages_Client");
+
+        if (!MainLTD || !MainLP)
+        {
+            std::cout << "MainLTD: " << MainLTD << '\n';
+            std::cout << "MainLP: " << MainLP << '\n';
+            return LootDrops;
+        }
+
+        LTDTables.push_back(MainLTD);
+
+        if (MainLP->IsA(UCompositeDataTable::StaticClass()))
+        {
+            for (int i = 0; i < MainLP->ParentTables.Num(); i++)
+            {
+                auto Table = MainLP->ParentTables[i];
+
+                if (!Table)
+                    continue;
+
+                LPTables.push_back(Table);
+            }
+        }
+
+        LPTables.push_back(MainLP);
+    }
+
     std::vector<FFortLootTierData*> TierGroupLTDs;
 
-    auto LTDRowMapNum = LTDRowMap.Pairs.Elements.Num();
-
-    auto TierGroupNameStr = TierGroupName.ToString();
-
-    for (int i = 0; i < LTDRowMapNum; i++)
+    for (int p = 0; p < LTDTables.size(); p++)
     {
-        auto& CurrentLTD = LTDRowMap.Pairs.Elements[i].ElementData.Value;
-        auto TierData = (FFortLootTierData*)CurrentLTD.Value();
+        auto LTD = LTDTables[p];
+        auto& LTDRowMap = LTD->RowMap;
 
-        auto TierDataGroupStr = TierData->TierGroup.ToString();
+        auto LTDRowMapNum = LTDRowMap.Pairs.Elements.Num();
 
-        // std::cout << "TierData->TierGroup.ToString(): " << TierDataGroupStr << '\n';
+        // auto TierGroupNameStr = TierGroupName.ToString();
 
-        if (TierDataGroupStr == TierGroupNameStr && TierData->Weight != 0)
+        for (int i = 0; i < LTDRowMapNum; i++)
         {
-            TierGroupLTDs.push_back(TierData);
+            auto& CurrentLTD = LTDRowMap.Pairs.Elements[i].ElementData.Value;
+            auto TierData = (FFortLootTierData*)CurrentLTD.Value();
+
+            // auto TierDataGroupStr = TierData->TierGroup.ToString();
+
+            // std::cout << "TierData->TierGroup.ToString(): " << TierDataGroupStr << '\n';
+
+            if (TierGroupName == TierData->TierGroup /* TierDataGroupStr == TierGroupNameStr */ && TierData->Weight != 0)
+            {
+                TierGroupLTDs.push_back(TierData);
+            }
         }
     }
 
     if (TierGroupLTDs.size() == 0)
     {
+        // std::cout << "Failed to find LTD!\n";
         std::cout << "Failed to find any LTD for: " << TierGroupName.ToString() << '\n';
         return LootDrops;
     }
 
     FFortLootTierData* ChosenRowLootTierData = GetLootTierData(TierGroupLTDs);
 
-    if (!ChosenRowLootTierData)
+    if (!ChosenRowLootTierData) // Should NEVER happen
         return LootDrops;
 
-    float NumLootPackageDrops = ChosenRowLootTierData->NumLootPackageDrops;
+    if (ChosenRowLootTierData->NumLootPackageDrops <= 0)
+        return PickLootDrops(TierGroupName, bPrint, ++recursive); // hm
 
-    /* for (int i = 0; i < ChosenRowLootTierData->LootPackageCategoryWeightArray.Num(); i++)
+    if (ChosenRowLootTierData->LootPackageCategoryMinArray.Count != ChosenRowLootTierData->LootPackageCategoryWeightArray.Count ||
+            ChosenRowLootTierData->LootPackageCategoryMinArray.Count != ChosenRowLootTierData->LootPackageCategoryMaxArray.Count)
+        return PickLootDrops(TierGroupName, bPrint, ++recursive); // hm
+
+    int MinimumLootDrops = 0;
+    float NumLootPackageDrops = std::floor(ChosenRowLootTierData->NumLootPackageDrops);
+
+    if (ChosenRowLootTierData->LootPackageCategoryMinArray.Count)
     {
-        if (ChosenRowLootTierData->LootPackageCategoryWeightArray[i] > 0)
-            NumLootPackageDrops++;
-    } */
-
-    auto& LPRowMap = LP->RowMap;
-
-    std::vector<FFortLootPackageData*> TierGroupLPs;
-
-    for (int i = 0; i < LPRowMap.Pairs.Elements.Num(); i++)
-    {
-        auto& CurrentLP = LPRowMap.Pairs.Elements[i].ElementData.Value;
-        auto LootPackage = (FFortLootPackageData*)CurrentLP.Value();
-
-        if (!LootPackage)
-            continue;
-
-        if (LootPackage->LootPackageID == ChosenRowLootTierData->LootPackage && LootPackage->Weight != 0)
+        for (int i = 0; i < ChosenRowLootTierData->LootPackageCategoryMinArray.Count; i++)
         {
-            TierGroupLPs.push_back(LootPackage);
+            if (ChosenRowLootTierData->LootPackageCategoryMinArray[i] > 0)
+            {
+                MinimumLootDrops += ChosenRowLootTierData->LootPackageCategoryMinArray[i];
+            }
         }
     }
 
-    bool bIsWorldList = ChosenRowLootTierData->LootPackage.ToString().contains("WorldList");
+    if (MinimumLootDrops > NumLootPackageDrops)
+    {
 
+    }
+
+    int SumLootPackageCategoryWeightArray = 0;
+
+    for (int i = 0; i < ChosenRowLootTierData->LootPackageCategoryWeightArray.Num(); i++)
+    {
+        auto CategoryWeight = ChosenRowLootTierData->LootPackageCategoryWeightArray[i];
+
+        if (CategoryWeight > 0)
+        {
+            auto CategoryMaxArray = ChosenRowLootTierData->LootPackageCategoryMaxArray[i];
+
+            if (CategoryMaxArray < 0)
+            {
+                SumLootPackageCategoryWeightArray += CategoryWeight;
+            }
+        }
+    }
+
+    int SumLootPackageCategoryMinArray = 0;
+
+    for (int i = 0; i < ChosenRowLootTierData->LootPackageCategoryMinArray.Num(); i++)
+    {
+        auto CategoryWeight = ChosenRowLootTierData->LootPackageCategoryMinArray[i];
+
+        if (CategoryWeight > 0)
+        {
+            auto CategoryMaxArray = ChosenRowLootTierData->LootPackageCategoryMaxArray[i];
+
+            if (CategoryMaxArray < 0)
+            {
+                SumLootPackageCategoryMinArray += CategoryWeight;
+            }
+        }
+    }
+
+    if (SumLootPackageCategoryWeightArray > SumLootPackageCategoryMinArray)
+        return PickLootDrops(TierGroupName, bPrint, ++recursive); // hm
+
+    std::vector<FFortLootPackageData*> TierGroupLPs;
+
+    for (int p = 0; p < LPTables.size(); p++)
+    {
+        auto LP = LPTables[p];
+        auto& LPRowMap = LP->RowMap;
+
+        for (int i = 0; i < LPRowMap.Pairs.Elements.Num(); i++)
+        {
+            auto& CurrentLP = LPRowMap.Pairs.Elements[i].ElementData.Value;
+            auto LootPackage = (FFortLootPackageData*)CurrentLP.Value();
+
+            if (!LootPackage)
+                continue;
+
+            if (LootPackage->LootPackageID == ChosenRowLootTierData->LootPackage && LootPackage->Weight != 0)
+            {
+                TierGroupLPs.push_back(LootPackage);
+            }
+        }
+    }
+
+    auto ChosenLootPackageName = ChosenRowLootTierData->LootPackage.ToString();
+
+    if (ChosenLootPackageName.contains(".Empty"))
+    {
+        return PickLootDrops(TierGroupName, bPrint);
+        // return LootDrops;
+    }
+
+    bool bIsWorldList = ChosenLootPackageName.contains("WorldList");
+
+    if (bPrint)
+    {
+        std::cout << "NumLootPackageDrops Floored: " << NumLootPackageDrops << '\n';
+        std::cout << "NumLootPackageDrops Original: " << ChosenRowLootTierData->NumLootPackageDrops << '\n';
+        std::cout << "TierGroupLPs.size(): " << TierGroupLPs.size() << '\n';
+        std::cout << "ChosenLootPackageName: " << ChosenLootPackageName << '\n';
+
+        /* float t = ChosenRowLootTierData->NumLootPackageDrops;
+
+        int b = (int)((t + t) - 0.5) >> 1;
+        auto c = ChosenRowLootTierData->NumLootPackageDrops - b;
+
+        b += c >= (rand() * 0.000030518509);
+
+        std::cout << "b: " << b << '\n'; */
+    }
+    
     LootDrops.reserve(NumLootPackageDrops);
 
-    for (int i = 0; i < NumLootPackageDrops; i++)
+    for (float i = 0; i < NumLootPackageDrops; i++)
     {
         if (i >= TierGroupLPs.size())
             break;
@@ -378,41 +639,68 @@ std::vector<FFortItemEntry> PickLootDrops(FName TierGroupName)
         auto TierGroupLP = TierGroupLPs.at(i);
         auto TierGroupLPStr = TierGroupLP->LootPackageCall.ToString();
 
+        if (TierGroupLPStr.contains(".Empty"))
+        {
+            NumLootPackageDrops++;
+            continue;
+        }
+
         std::vector<FFortLootPackageData*> lootPackageCalls;
 
-        for (int j = 0; j < LPRowMap.Pairs.Elements.Num(); j++)
+        if (bIsWorldList)
         {
-            auto& CurrentLP = LPRowMap.Pairs.Elements[j].ElementData.Value;
-
-            if (bIsWorldList)
+            for (int j = 0; j < TierGroupLPs.size(); j++)
             {
-                auto LootPackage = (FFortLootPackageData*)CurrentLP.Value();
+                auto& CurrentLP = TierGroupLPs.at(j);
 
-                lootPackageCalls.push_back(LootPackage);
+                if (CurrentLP->Weight != 0)
+                    lootPackageCalls.push_back(CurrentLP);
             }
-            else
+        }
+        else
+        {
+            for (int p = 0; p < LPTables.size(); p++)
             {
-                auto LootPackage = (FFortLootPackageData*)CurrentLP.Value();
+                auto LPRowMap = LPTables[p]->RowMap;
 
-                if (LootPackage->LootPackageID.ToString() == TierGroupLPStr && LootPackage->Weight != 0)
+                for (int j = 0; j < LPRowMap.Pairs.Elements.Num(); j++)
                 {
-                    lootPackageCalls.push_back(LootPackage);
+                    auto& CurrentLP = LPRowMap.Pairs.Elements[j].ElementData.Value;
+
+                    auto LootPackage = (FFortLootPackageData*)CurrentLP.Value();
+
+                    if (LootPackage->LootPackageID.ToString() == TierGroupLPStr && LootPackage->Weight != 0)
+                    {
+                        lootPackageCalls.push_back(LootPackage);
+                    }
                 }
             }
         }
 
         if (lootPackageCalls.size() == 0)
+        {
+            // std::cout << "lootPackageCalls.size() == 0!\n";
+            NumLootPackageDrops++; // ??
             continue;
+        }
 
         FFortLootPackageData* LootPackageCall = GetLootPackage(lootPackageCalls);
 
-        if (!LootPackageCall)
+        if (!LootPackageCall) // Should NEVER happen
             continue;
 
         auto ItemDef = LootPackageCall->ItemDefinition.Get();
 
         if (!ItemDef)
+        {
+            NumLootPackageDrops++; // ??
             continue;
+        }
+
+        if (bPrint)
+        {
+            std::cout << std::format("[{}] {} {} {}\n", i, lootPackageCalls.size(), TierGroupLPStr, ItemDef->GetName());
+        }
 
         FFortItemEntry LootDropEntry{};
 
@@ -426,25 +714,96 @@ std::vector<FFortItemEntry> PickLootDrops(FName TierGroupName)
     return LootDrops;
 }
 
-static AFortPickupAthena* SpawnPickup(FFortItemEntry ItemEntry, FVector Location, EFortPickupSourceTypeFlag PickupSource = EFortPickupSourceTypeFlag::Other, EFortPickupSpawnSource SpawnSource = EFortPickupSpawnSource::Unset, AFortPawn* Pawn = nullptr)
-{
-    auto Pickup = SpawnPickup(ItemEntry.ItemDefinition, Location, ItemEntry.Count, PickupSource, SpawnSource, ItemEntry.LoadedAmmo, Pawn);
-    return Pickup;
-}
-
 static bool IsPrimaryQuickbar(UFortItemDefinition* ItemDefinition)
 {
+    /* if (ItemDefinition->IsA(UFortDecoItemDefinition::StaticClass()))
+    {
+        if (ItemDefinition->IsA(UFortTrapItemDefinition::StaticClass()))
+            return false;
+        else
+            return true;
+    }
+    else if (ItemDefinition->IsA(UFortWeaponItemDefinition::StaticClass()))
+        return true; */
+
     if (!ItemDefinition->IsA(UFortWeaponMeleeItemDefinition::StaticClass()) && !ItemDefinition->IsA(UFortBuildingItemDefinition::StaticClass()) && !ItemDefinition->IsA(UFortAmmoItemDefinition::StaticClass()) && !ItemDefinition->IsA(UFortResourceItemDefinition::StaticClass()) && !ItemDefinition->IsA(UFortTrapItemDefinition::StaticClass()))
-        return true;
+       return true;
 
     return false;
 }
 
+static bool CanInventoryHoldItem(AFortPlayerControllerAthena* PlayerController, UFortItemDefinition* CheckIfCanStack, int IncomingCount)
+{
+    auto ItemInstances = PlayerController->WorldInventory->Inventory.ItemInstances;
+
+    bool bPrimaryQuickBarFull = false;
+
+    if (CheckIfCanStack)
+    {
+        if (IsPrimaryQuickbar(CheckIfCanStack))
+        {
+            int ItemCounts = 0;
+
+            for (int i = 0; i < ItemInstances.Num(); i++)
+            {
+                auto ItemInstance = ItemInstances[i];
+
+                if (!ItemInstance)
+                    continue;
+
+                auto ItemDefinition = ItemInstance->ItemEntry.ItemDefinition;
+
+                if (CheckIfCanStack == ItemDefinition)
+                {
+                    if (IncomingCount + ItemInstance->ItemEntry.Count <= ItemDefinition->MaxStackSize)
+                    {
+                        return false; // we can stack
+                    }
+                    /* else
+                    {
+                        if (!ItemDefinition->bAllowMultipleStacks)
+                            return true;
+                    } */
+                }
+
+                if (IsPrimaryQuickbar(ItemDefinition))
+                {
+                    ItemCounts++;
+                    bPrimaryQuickBarFull = (ItemCounts /* - 6 */) >= 5;
+
+                    if (bPrimaryQuickBarFull)
+                        return !bPrimaryQuickBarFull;
+                }
+            }
+        }
+        else
+        {
+            for (int i = 0; i < ItemInstances.Num(); i++)
+            {
+                auto ItemInstance = ItemInstances[i];
+
+                if (!ItemInstance)
+                    continue;
+
+                auto ItemDefinition = ItemInstance->ItemEntry.ItemDefinition;
+
+                if (ItemDefinition == CheckIfCanStack)
+                {
+                }
+            }
+        }
+    }
+
+    return bPrimaryQuickBarFull;
+}
+
 static bool IsInventoryFull(AFortPlayerControllerAthena* PlayerController, int Start = 0, UFortItemDefinition* CheckIfCanStack = nullptr, int IncomingCount = 0)
 {
-    int ItemCounts = Start;
+    int ItemCounts = 0; /* Start */;
 
     auto ItemInstances = &PlayerController->WorldInventory->Inventory.ItemInstances;
+
+    bool bIsInventoryFull = false;
 
     for (int i = 0; i < ItemInstances->Num(); i++)
     {
@@ -455,12 +814,30 @@ static bool IsInventoryFull(AFortPlayerControllerAthena* PlayerController, int S
 
         auto ItemDefinition = ItemInstance->ItemEntry.ItemDefinition;
 
-        if (CheckIfCanStack == ItemDefinition && IncomingCount + ItemInstance->ItemEntry.Count <= ItemDefinition->MaxStackSize)
-            continue;
+        if (CheckIfCanStack == ItemDefinition)
+        {
+            if (IncomingCount + ItemInstance->ItemEntry.Count <= ItemDefinition->MaxStackSize)
+            {
+                return false; // ?
+            }
+            /* else
+            {
+                if (!ItemDefinition->bAllowMultipleStacks)
+                    return true;
+            } */
+        }
+
+        std::cout << "ItemCounts: " << ItemCounts << '\n';
 
         if (IsPrimaryQuickbar(ItemDefinition))
+        {
             ItemCounts++;
+            bIsInventoryFull = (ItemCounts /* - 6 */) >= 5;
+
+            if (bIsInventoryFull)
+                return bIsInventoryFull;
+        }
     }
 
-    return ItemCounts >= 6;
+    return bIsInventoryFull;
 }

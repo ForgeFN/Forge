@@ -77,14 +77,27 @@ public:
 		Max = 0;
 	}
 
+	inline void FreeBAD()
+	{
+		Data = nullptr;
+
+		Count = 0;
+		Max = 0;
+	}
+
 	inline T& Add(const T& InData)
 	{
 		Reserve(1);
-		Data[Count] = InData;
-		++Count;
-		++Max;
 
-		return Data[Count - 1];
+		// if (Data)
+		{
+			Data[Count] = InData;
+			++Count;
+			// ++Max;
+			return Data[Count - 1];
+		}
+
+		// return T();
 	}
 
 	inline bool Remove(const int Index)
@@ -237,9 +250,10 @@ private:
 	void* InterfacePointer;
 
 public:
-	inline UObject* GetObject() const
+	template <typename T = UObject>
+	inline T* GetObjectPtr() const
 	{
-		return ObjectPointer;
+		return (T*)ObjectPointer;
 	}
 
 	inline UObject*& GetObjectRef()

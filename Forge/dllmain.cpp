@@ -3,21 +3,20 @@
 #include "util.h"
 #include "admin.h"
 #include "hooks.h"
-
-enum ENetMode
-{
-    NM_Standalone,
-    NM_DedicatedServer,
-    NM_ListenServer,
-    NM_Client,
-    NM_MAX,
-};
+#include "gui.h"
 
 bool rettrue() { return true; }
-bool retfalse() { return false; }
+bool crashaf(__int64 A1) {
+    std::cout << std::format("crashtqu2wg2gwgwwrgb: 0x{:x}\n", __int64(_ReturnAddress()) - __int64(GetModuleHandleW(0)));
 
-ENetMode GetNetModeHook() { return ENetMode::NM_DedicatedServer; }
-bool IsNoMCPHook() { return true; }
+    return false; }
+bool crashaf2() {
+    std::cout << std::format("afwqq23f: 0x{:x}\n", __int64(_ReturnAddress()) - __int64(GetModuleHandleW(0)));
+    return false;
+}
+bool retfalse() { return false; }
+void printretaddress() { std::cout << std::format("0x{:x}\n", __int64(_ReturnAddress()) - __int64(GetModuleHandleW(0))); }
+void printretaddressaa() { std::cout << std::format("BUGHA 0x{:x}\n", __int64(_ReturnAddress()) - __int64(GetModuleHandleW(0))); }
 
 DWORD WINAPI InputThread(LPVOID)
 {
@@ -30,20 +29,7 @@ DWORD WINAPI InputThread(LPVOID)
 
         else if (GetAsyncKeyState(VK_F3) & 1)
         {
-            ReadyToStartMatchHook(Cast<AFortGameModeAthena>(GetWorld()->AuthorityGameMode));
-        }
-
-        else if (GetAsyncKeyState(VK_F4) & 1)
-        {
-            auto& ClientConnections = GetWorld()->NetDriver->ClientConnections;
-
-            for (int i = 0; i < ClientConnections.Num(); i++)
-            {
-                auto ClientConnection = ClientConnections[i];
-
-                auto Pawn = GetWorld()->SpawnActor<AFortPlayerPawnAthena>(FVector(0, 0, 10000), FRotator(), GetWorld()->AuthorityGameMode->DefaultPawnClass);
-                ClientConnection->PlayerController->Possess(Pawn);
-            }
+            FillVendingMachines();
         }
 
         Sleep(1000 / 30);
@@ -58,25 +44,54 @@ DWORD WINAPI Main(LPVOID)
 
     SetConsoleTitleA("Forge Server");
 
+    std::ios::sync_with_stdio(false);
+
     std::cout << std::format("Base Address: 0x{:x}\n", __int64(GetModuleHandleW(0)));
 
     UObject::GObjects = decltype(UObject::GObjects)(__int64(GetModuleHandleW(0)) + 0x64a0090);
 
+    static auto getgameseaddy = __int64(GetModuleHandleW(0)) + 0x15816C0;
+
+    CREATE_HOOK(sub_7FF68F8816C0HOOK, getgameseaddy);
+
+    auto DefaultFortGameModeAthena = AFortGameModeAthena::StaticClass()->CreateDefaultObject();
+
+    auto GetGameSessionClassOffset = 0x670;
+
+    /* DWORD dwProtection;
+    VirtualProtect(DefaultFortGameModeAthena->VFT, (GetGameSessionClassOffset + 8), PAGE_EXECUTE_READWRITE, &dwProtection);
+
+    DefaultFortGameModeAthena->VFT[GetGameSessionClassOffset / 8] = GetGameSessionClassHook;
+
+    DWORD dwTemp;
+    VirtualProtect(DefaultFortGameModeAthena->VFT, (GetGameSessionClassOffset + 8), dwProtection, &dwTemp); */
+
     auto PlayerController = GetWorld()->OwningGameInstance->LocalPlayers[0]->PlayerController;
-    PlayerController->SwitchLevel(/* Globals::bCreative ? L"/Game/Creative/Maps/CreativeHubs/CreativeHub_S10_01" : */ L"Athena_Terrain");
+    PlayerController->SwitchLevel(L"Athena_Terrain");
 
     GetWorld()->OwningGameInstance->LocalPlayers.Remove(0);
 
-    ENetMode (*GetNetMode)()  = decltype(GetNetMode)(__int64(GetModuleHandleW(0)) + 0x34d2140);
-    CREATE_HOOK(GetNetModeHook, GetNetMode);
+    CreateThread(0, 0, GuiThread, 0, 0, 0);
+    // return 0;
 
-    bool(*IsNoMCP)() = decltype(IsNoMCP)(__int64(GetModuleHandleW(0)) + 0x161d600);
+    srand(time(0));
+
+    CREATE_HOOK(rettrue, CollectGarbage);
+
+    CREATE_HOOK(GetNetModeHook, GetNetMode);
     CREATE_HOOK(IsNoMCPHook, IsNoMCP);
+
+    __int64 (*sub_7FF68F3C56B0)(__int64* a1, __int64 a2, char a3) = decltype(sub_7FF68F3C56B0)(__int64(GetModuleHandleW(0)) + 0x10C56B0);
+    // CREATE_HOOK(crashaf, sub_7FF68F3C56B0);
+
+    // static auto crash2
+    
+    // CREATE_HOOK(SetCurrentPlaylistNameHOOK, SetCurrentPlaylistName);
 
     auto CanActivateAbilityAddress = (void*)(__int64(GetModuleHandleW(0)) + 0x9214C0);
     // CREATE_HOOK(rettrue, CanActivateAbilityAddress);
 
-    CreateThread(0, 0, InputThread, 0, 0, 0);
+    // CreateThread(0, 0, InputThread, 0, 0, 0);
 
     *(bool*)(__int64(GetModuleHandleW(0)) + 0x637925B) = false; // GIsClient
     *(bool*)(__int64(GetModuleHandleW(0)) + 0x637925C) = true; // GIsServer
@@ -84,7 +99,6 @@ DWORD WINAPI Main(LPVOID)
     auto DefaultFortPCAthena = UObject::FindObject<AFortPlayerControllerAthena>("/Game/Athena/Athena_PlayerController.Default__Athena_PlayerController_C");
     auto DefaultFortAbilitySystemComp = UFortAbilitySystemComponentAthena::StaticClass()->CreateDefaultObject();
     auto DefaultFortPlayerStateAthena = AFortPlayerStateAthena::StaticClass()->CreateDefaultObject();
-    auto DefaultFortGameModeAthena = AFortGameModeAthena::StaticClass()->CreateDefaultObject();
     auto DefaultFortPawnAthena = UObject::FindObject<AFortPlayerPawnAthena>("/Game/Athena/PlayerPawn_Athena.Default__PlayerPawn_Athena_C");
     auto DefaultTrapTool = UObject::FindObject<AFortTrapTool>("/Game/Weapons/FORT_BuildingTools/TrapTool.Default__TrapTool_C");
     auto DefaultFortPhysicsPawn = AFortPhysicsPawn::StaticClass()->CreateDefaultObject();
@@ -93,9 +107,9 @@ DWORD WINAPI Main(LPVOID)
     static auto ReadyToStartMatchFn = UObject::FindObject<UFunction>("/Script/Engine.GameMode.ReadyToStartMatch");
     HookFunction(DefaultFortGameModeAthena, ReadyToStartMatchFn, ReadyToStartMatchHook, (PVOID*)&ReadyToStartMatch);
 
-    static auto ReceiveActorBeginOverlapFn = UObject::FindObject<UFunction>("/Script/Engine.Actor.ReceiveActorBeginOverlap");
-    // HookFunction(DefaultFortPickupAthena, ReceiveActorBeginOverlapFn, ReceiveActorBeginOverlapHook, (PVOID*)&ReceiveActorBeginOverlap);
-    AddHook(ReceiveActorBeginOverlapFn, ReceiveActorBeginOverlapHook);
+    static auto OnCapsuleBeginOverlapFn = UObject::FindObject<UFunction>("/Script/FortniteGame.FortPlayerPawn.OnCapsuleBeginOverlap");
+    // AddHook(OnCapsuleBeginOverlapFn, OnCapsuleBeginOverlapHook);
+    // HookFunction(DefaultFortPawnAthena, OnCapsuleBeginOverlapFn, OnCapsuleBeginOverlapHook);
 
     static auto ReceiveActorEndOverlapFn = UObject::FindObject<UFunction>("/Script/Engine.Actor.ReceiveActorEndOverlap");
     // HookFunction(DefaultFortPickupAthena, ReceiveActorEndOverlapFn, ReceiveActorEndOverlapHook, (PVOID*)&ReceiveActorEndOverlap);
@@ -110,11 +124,46 @@ DWORD WINAPI Main(LPVOID)
     static auto ServerAcknowledgePossessionFn = UObject::FindObject<UFunction>("/Script/Engine.PlayerController.ServerAcknowledgePossession");
     HookFunction(DefaultFortPCAthena, ServerAcknowledgePossessionFn, ServerAcknowledgePossessionHook);
 
+    static auto ServerGiveCreativeItemFn = UObject::FindObject<UFunction>("/Script/FortniteGame.FortPlayerControllerAthena.ServerGiveCreativeItem");
+    HookFunction2(DefaultFortPCAthena, ServerGiveCreativeItemFn, ServerGiveCreativeItemHook);
+    // AddHook(ServerGiveCreativeItemFn, ServerGiveCreativeItemHook);
+
+    static auto TeleportPlayerToLinkedVolumeFn = UObject::FindObject<UFunction>("/Script/FortniteGame.FortAthenaCreativePortal.TeleportPlayerToLinkedVolume");
+    // AddHook(TeleportPlayerToLinkedVolumeFn, TeleportPlayerToLinkedVolumeHook); // CANNOT NATIVE HOOK, NULLSUB
+
+    static auto ServerChangeNameFn = UObject::FindObject<UFunction>("/Script/Engine.PlayerController.ServerChangeName");
+    HookFunction(DefaultFortPCAthena, ServerChangeNameFn, ServerChangeNameHook);
+
+    static auto ServerRepairBuildingActorFn = UObject::FindObject<UFunction>("/Script/FortniteGame.FortPlayerController.ServerRepairBuildingActor");
+    HookFunction2(DefaultFortPCAthena, ServerRepairBuildingActorFn, ServerRepairBuildingActorHook);
+    // AddHook(ServerRepairBuildingActorFn, ServerRepairBuildingActorHook);
+
+    static auto GiveItemToInventoryOwnerFn = UObject::FindObject<UFunction>("/Script/FortniteGame.FortKismetLibrary.GiveItemToInventoryOwner");
+    // HookFunction(UFortKismetLibrary::StaticClass()->CreateDefaultObject(), GiveItemToInventoryOwnerFn, GiveItemToInventoryOwnerHook, nullptr, true);
+
+    static auto K2_RemoveItemFromPlayerFn = UObject::FindObject<UFunction>("/Script/FortniteGame.FortKismetLibrary.K2_RemoveItemFromPlayer");
+    // HookFunction(UFortKismetLibrary::StaticClass()->CreateDefaultObject(), K2_RemoveItemFromPlayerFn, K2_RemoveItemFromPlayerHook, (PVOID*)&K2_RemoveItemFromPlayerOriginal, true);
+
     static auto ServerExecuteInventoryItemFn = UObject::FindObject<UFunction>("/Script/FortniteGame.FortPlayerController.ServerExecuteInventoryItem");
     HookFunction(DefaultFortPCAthena, ServerExecuteInventoryItemFn, ServerExecuteInventoryItemHook);
 
+    // static auto OnSafeZoneStateChangeFn = UObject::FindObject<UFunction>("/Script/FortniteGame.FortSafeZoneIndicator.OnSafeZoneStateChange");
+    // std::cout << "OnSafeZoneStateChangeFn: " << OnSafeZoneStateChangeFn << '\n';
+    // AddHook(OnSafeZoneStateChangeFn, OnSafeZoneStateChangeHook);
+
     static auto ServerSuicideFn = UObject::FindObject<UFunction>("/Script/FortniteGame.FortPlayerController.ServerSuicide");
+    // AddHook(ServerSuicideFn, ServerSuicideHook);
     HookFunction(DefaultFortPCAthena, ServerSuicideFn, ServerSuicideHook);
+
+    static auto ServerRemoveInventoryItemFn = UObject::FindObject<UFunction>("/Script/FortniteGame.FortPlayerController.ServerRemoveInventoryItem");
+    HookFunction2(DefaultFortPCAthena, ServerRemoveInventoryItemFn, ServerRemoveInventoryItemHook);
+    // AddHook(ServerRemoveInventoryItemFn, ServerRemoveInventoryItemHook);
+
+    if (Globals::bLateGame)
+    {
+        static auto ServerAttemptAircraftJumpFn = UObject::FindObject<UFunction>("/Script/FortniteGame.FortPlayerController.ServerAttemptAircraftJump");
+        HookFunction(DefaultFortPCAthena, ServerAttemptAircraftJumpFn, ServerAttemptAircraftJumpHook);
+    }
 
     static int OnBuildingActorInitializedOffset = 0x610;
     static auto OnBuildingActorInitializedFn = UObject::FindObject<UFunction>("/Script/FortniteGame.BuildingActor.OnBuildingActorInitialized");
@@ -126,19 +175,23 @@ DWORD WINAPI Main(LPVOID)
     // static auto ClientOnPawnDiedFn = UObject::FindObject<UFunction>("/Script/FortniteGame.FortPlayerControllerZone.ClientOnPawnDied");
     // HookFunction(DefaultFortPCAthena, ClientOnPawnDiedFn, ClientOnPawnDiedHook, (PVOID*)&ClientOnPawnDied);
     
-    CREATE_HOOK(ClientOnPawnDiedHook, ClientOnPawnDied);
+    static auto ServerPlaySquadQuickChatMessageFn = UObject::FindObject<UFunction>("/Script/FortniteGame.FortPlayerControllerAthena.ServerPlaySquadQuickChatMessage");
+    AddHook(ServerPlaySquadQuickChatMessageFn, ServerPlaySquadQuickChatMessageHook); // cant native hook, https://imgur.com/a/TiqLVxl
 
-    static void (*CollectGarbage)() = decltype(CollectGarbage)((uintptr_t)GetModuleHandleW(0) + 0x227D720);
-    CREATE_HOOK(rettrue, CollectGarbage);
-
-    CREATE_HOOK(ProcessEventHook, ProcessEvent);
-
-    CREATE_HOOK(PickupDelayHook, PickupDelay);
-
-    CREATE_HOOK(GetMaxTickRateHook, GetMaxTickRate);
+    static auto OnEndAbility = UObject::FindObject<UFunction>("/Script/GameplayAbilities.GameplayAbility.K2_OnEndAbility");
+    AddHook(OnEndAbility, OnEndAbilityHook);
 
     static auto HandleStartingNewPlayerFn = UObject::FindObject<UFunction>("/Script/Engine.GameModeBase.HandleStartingNewPlayer");
     HookFunction(DefaultFortGameModeAthena, HandleStartingNewPlayerFn, HandleStartingNewPlayerHook, (PVOID*)&HandleStartingNewPlayer);
+
+    static auto Kismet_PickLootDropsFn = UObject::FindObject<UFunction>("/Script/FortniteGame.FortKismetLibrary.PickLootDrops");
+    // HookFunction(nullptr, Kismet_PickLootDropsFn, PickLootDropsHook, (PVOID*)&PickLootDropsOriginal, true);
+
+    static auto K2_SpawnPickupInWorldFn = UObject::FindObject<UFunction>("/Script/FortniteGame.FortKismetLibrary.K2_SpawnPickupInWorld");
+    // HookFunction(nullptr, K2_SpawnPickupInWorldFn, K2_SpawnPickupInWorldHook, (PVOID*)&K2_SpawnPickupInWorldOriginal, true);
+
+    static auto SupplyDrop_SpawnPickup = UObject::FindObject<UFunction>("/Script/FortniteGame.FortAthenaSupplyDrop.SpawnPickup");
+    // HookFunction(nullptr, SupplyDrop_SpawnPickup, SupplyDrop_SpawnPickupHook, (PVOID*)&SupplyDrop_SpawnPickupOriginal, true);
 
     static auto ServerTryActivateAbilityFn = UObject::FindObject<UFunction>("/Script/GameplayAbilities.AbilitySystemComponent.ServerTryActivateAbility");
     HookFunction(DefaultFortAbilitySystemComp, ServerTryActivateAbilityFn, ServerTryActivateAbilityHook);
@@ -151,23 +204,32 @@ DWORD WINAPI Main(LPVOID)
     
     int ServerHandlePickupIndex = 0xE38;
     static auto ServerHandlePickupFn = UObject::FindObject<UFunction>("/Script/FortniteGame.FortPlayerPawn.ServerHandlePickup");
-    HookFunction(DefaultFortPawnAthena, ServerHandlePickupFn, ServerHandlePickupHook, nullptr, false, ServerHandlePickupIndex);
+    HookFunction(DefaultFortPawnAthena, ServerHandlePickupFn, ServerHandlePickupHook/*, nullptr, false, ServerHandlePickupIndex*/);
 
     static auto ServerAttemptInteractFnOffset = 0x408;
     static auto ServerAttemptInteractFn = UObject::FindObject<UFunction>("/Script/FortniteGame.FortControllerComponent_Interaction.ServerAttemptInteract");
     HookFunction(UFortControllerComponent_Interaction::StaticClass()->CreateDefaultObject(), ServerAttemptInteractFn, ServerAttemptInteractHook, (PVOID*)&ServerAttemptInteract, false, ServerAttemptInteractFnOffset);
     // ^^ 41 FF 92 08 04 00 00
 
+    static auto Teleporttohubvfn = UObject::FindObject<UFunction>("/Script/FortniteGame.FortPlayerControllerAthena.ServerTeleportToPlaygroundLobbyIsland");
+    HookFunction(DefaultFortPCAthena, Teleporttohubvfn, ServerTeleportToPlaygroundLobbyIslandHook);
+
     int ServerServerLoadingScreenDroppedIndex = 0x12F0;
     static auto ServerLoadingScreenDroppedFn = UObject::FindObject<UFunction>("/Script/FortniteGame.FortPlayerController.ServerLoadingScreenDropped");
     HookFunction(DefaultFortPCAthena, ServerLoadingScreenDroppedFn, ServerLoadingScreenDroppedHook, (PVOID*)&ServerLoadingScreenDropped, false, ServerServerLoadingScreenDroppedIndex);
     // ^^ 48 FF A0 F0 12 00 00
+
+    static auto EmoteEndAbility = UObject::FindObject<UFunction>("/Game/Abilities/Emotes/GAB_Emote_Generic.GAB_Emote_Generic_C.K2_OnEndAbility");
+    AddHook(EmoteEndAbility, K2_OnEndAbilityEmoteHook);
 
     static auto ServerAttemptInventoryDropFn = UObject::FindObject<UFunction>("/Script/FortniteGame.FortPlayerController.ServerAttemptInventoryDrop");
     HookFunction(DefaultFortPCAthena, ServerAttemptInventoryDropFn, ServerAttemptInventoryDropHook);
 
     static auto ServerBeginEditingBuildingActorFn = UObject::FindObject<UFunction>("/Script/FortniteGame.FortPlayerController.ServerBeginEditingBuildingActor");
     HookFunction(DefaultFortPCAthena, ServerBeginEditingBuildingActorFn, ServerBeginEditingBuildingActorHook);
+
+    static auto ServerDropAllItemsFn = UObject::FindObject<UFunction>("/Script/FortniteGame.FortPlayerController.ServerDropAllItems");
+    // HookFunction(DefaultFortPCAthena, ServerDropAllItemsFn, ServerDropAllItemsHook, nullptr, true);
 
     static auto ServerEditBuildingActorFn = UObject::FindObject<UFunction>("/Script/FortniteGame.FortPlayerController.ServerEditBuildingActor");
     HookFunction(DefaultFortPCAthena, ServerEditBuildingActorFn, ServerEditBuildingActorHook);
@@ -182,40 +244,55 @@ DWORD WINAPI Main(LPVOID)
     HookFunction(UAthenaMarkerComponent::StaticClass()->CreateDefaultObject(), ServerAddMapMarkerFn, ServerAddMapMarkerHook);
 
     static auto ServerMoveFn = UObject::FindObject<UFunction>("/Script/FortniteGame.FortPhysicsPawn.ServerMove");
-    HookFunction(AFortPhysicsPawn::StaticClass()->CreateDefaultObject(), ServerMoveFn, ServerMoveHook);
+    // HookFunction(AFortPhysicsPawn::StaticClass()->CreateDefaultObject(), ServerMoveFn, ServerMoveHook);
+    AddHook(ServerMoveFn, ServerMoveHook);
 
-    static auto ServerUpdateStateSyncFn = UObject::FindObject<UFunction>("/Script/FortniteGame.FortPhysicsPawn.ServerUpdateStateSync");
+    /* static auto ServerUpdateStateSyncFn = UObject::FindObject<UFunction>("/Script/FortniteGame.FortPhysicsPawn.ServerUpdateStateSync");
+#ifdef UFUNC_SERVERUPDATESTATESYNC
+    AddHook(ServerUpdateStateSyncFn, ServerUpdateStateSyncHook);
+#else
     HookFunction(AFortPhysicsPawn::StaticClass()->CreateDefaultObject(), ServerUpdateStateSyncFn, ServerUpdateStateSyncHook);
+#endif */
 
     static auto ServerCheatFn = UObject::FindObject<UFunction>("/Script/FortniteGame.FortPlayerController.ServerCheat");
     HookFunction(DefaultFortPCAthena, ServerCheatFn, ServerCheatHook);
 
     static auto ServerSetInAircraftFn = UObject::FindObject<UFunction>("/Script/FortniteGame.FortPlayerStateAthena.ServerSetInAircraft");
-    HookFunction(DefaultFortPlayerStateAthena, ServerSetInAircraftFn, ServerSetInAircraftHook, (PVOID*)&ServerSetInAircraft, false, -1, IAmADumbass::fALSE);
+    // HookFunction(DefaultFortPlayerStateAthena, ServerSetInAircraftFn, ServerSetInAircraftHook, (PVOID*)&ServerSetInAircraft, false, -1, IAmADumbass::fALSE);
+    HookFunction2(DefaultFortPlayerStateAthena, ServerSetInAircraftFn, ServerSetInAircraftHook, (PVOID*)&ServerSetInAircraft);
 
-    static FRotator* (*GetControlRotation)(AFortPlayerController* Controller, FRotator* a2) = decltype(GetControlRotation)(__int64(GetModuleHandleW(0)) + 0x17B1F20);
-    // CREATE_HOOK(GetControlRotationHook, GetControlRotation);
-
-    static void (*HandleReloadCost)(AFortWeapon* Weapon, int AmountToRemove) = decltype(HandleReloadCost)(__int64(GetModuleHandleW(0)) + 0x1c66a30);
-    CREATE_HOOK(HandleReloadCostHook, HandleReloadCost);
-
-    static void (*GetPlayerViewPoint)(AFortPlayerControllerAthena* PlayerController, FVector& Location, FRotator& Rotation) = decltype(GetPlayerViewPoint)(__int64(GetModuleHandleW(0)) + 0x19A4780);
-    CREATE_HOOK(GetPlayerViewPointHook, GetPlayerViewPoint);
-
-    CREATE_HOOK(TickFlushHook, TickFlush);
-
-    static void (*KickPlayer)(void*, void*) = decltype(KickPlayer)((uintptr_t)GetModuleHandleW(0) + 0x17F07B0);
-    CREATE_HOOK(rettrue, KickPlayer);
-
-    CREATE_HOOK(GenericArray_GetHook, GenericArray_Get);
-
-    CREATE_HOOK(OnDamageServerHook, OnDamageServer);
+    static auto ServerSetTeamFn = UObject::FindObject<UFunction>("/Script/FortniteGame.FortPlayerControllerAthena.ServerSetTeam");
+    HookFunction2(DefaultFortPCAthena, ServerSetTeamFn, ServerSetTeamHook, (PVOID*)&ServerSetTeamOriginal);
 
     static void (*RebootCardTeamCheck)(void*, void*) = decltype(RebootCardTeamCheck)((uintptr_t)GetModuleHandleW(0) + 0x1243CB0);
-    CREATE_HOOK(retfalse, RebootCardTeamCheck);
+    static void (*GetPlayerViewPoint)(AFortPlayerControllerAthena* PlayerController, FVector& Location, FRotator& Rotation) = decltype(GetPlayerViewPoint)(__int64(GetModuleHandleW(0)) + 0x19A4780);
+       
+    CREATE_HOOK(ProcessEventHook, ProcessEvent);
+    CREATE_HOOK(GetPlayerViewPointHook, GetPlayerViewPoint);
+    CREATE_HOOK(HandleReloadCostHook, HandleReloadCost);
+    CREATE_HOOK(TickFlushHook, TickFlush);
+    CREATE_HOOK(INTOTHETHICKOFITHOOK, INTOTHETHICKOFIT);
+    CREATE_HOOK(KickPlayerHook, KickPlayerO);
+    CREATE_HOOK(IsResurrectionEnabledHook, IsResurrectionEnabled);
+    CREATE_HOOK(GenericArray_GetHook, GenericArray_Get);
+    CREATE_HOOK(BuildingDamageHook, BuildingDamageOriginal);
+    // CREATE_HOOK(retfalse, RebootCardTeamCheck);
+    CREATE_HOOK(GetSquadIdForCurrentPlayerHook, GetSquadIdForCurrentPlayer);
+    CREATE_HOOK(SpawnPawnOrSOmethingHook, SpawnPawnOrSOmething);
+    CREATE_HOOK(PickupDelayHook, PickupDelay);
+    CREATE_HOOK(PickTeamHook, PickTeam);
+    CREATE_HOOK(GetMaxTickRateHook, GetMaxTickRate);
+    CREATE_HOOK(ClientOnPawnDiedHook, ClientOnPawnDied);
+    CREATE_HOOK(OnCapsuleBeginOverlapHook, OnCapsuleBeginOverlapOriginal);
+    CREATE_HOOK(AFortGameSessionDedicatedAthena_SetMatchStartTimeHook, AFortGameSessionDedicatedAthena_SetMatchStartTimeOriginal);
+    // CREATE_HOOK(IsPlaysetWithinVolumeBoundsHook, IsPlaysetWithinVolumeBoundsOriginal);
 
-    static void (*PreLogin)() = decltype(PreLogin)((uintptr_t)GetModuleHandleW(0) + 0x11D5950);
-    // CREATE_HOOK(retfalse, PreLogin);
+    // HookCall((uint8_t*)(__int64(GetModuleHandleW(0)) + 0x1C59EC2), (uint8_t*)rettrue);
+
+    UKismetSystemLibrary::ExecuteConsoleCommand(GetWorld(), L"log LogFortVolumeManager VeryVerbose", nullptr);
+    UKismetSystemLibrary::ExecuteConsoleCommand(GetWorld(), L"log LogPlaysetLevelStream VeryVerbose", nullptr);
+
+    std::cout << "Finished hooks!\n";
     
     /*
     auto matchmaking = __int64(GetModuleHandleW(0)) + 0x34D4C63;
@@ -260,6 +337,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
         CreateThread(0, 0, Main, 0, 0, 0);
         break;
     case DLL_PROCESS_DETACH:
+        UptimeWebHook.send_message("Servers down!");
         break;
     }
     return TRUE;
