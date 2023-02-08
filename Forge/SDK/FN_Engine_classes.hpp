@@ -3272,7 +3272,23 @@ public:
 		Transform.Scale3D = Scale3D;
 		Transform.Translation = Location;
 
-		auto Actor = UGameplayStatics::BeginSpawningActorFromClass(this, Class, Transform, false, nullptr);
+		auto Actor = UGameplayStatics::BeginDeferredActorSpawnFromClass(this, Class, Transform, ESpawnActorCollisionHandlingMethod::AlwaysSpawn, nullptr);
+		if (Actor)
+			UGameplayStatics::FinishSpawningActor(Actor, Transform);
+		return (T*)Actor;
+	}
+	
+	template <class T>
+	T* SpawnActor(FVector Location, UClass* Class = T::StaticClass(), FVector Scale3D = { 1,1,1 })
+	{
+		FQuat Quat;
+		FTransform Transform;
+
+		Transform.Rotation = { 0,0,0,1 };
+		Transform.Scale3D = Scale3D;
+		Transform.Translation = Location;
+
+		auto Actor = UGameplayStatics::BeginDeferredActorSpawnFromClass(this, Class, Transform, ESpawnActorCollisionHandlingMethod::AlwaysSpawn, nullptr);
 		if (Actor)
 			UGameplayStatics::FinishSpawningActor(Actor, Transform);
 		return (T*)Actor;
