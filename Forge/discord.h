@@ -57,7 +57,7 @@ private:
 
 namespace Information
 {
-                                                            static std::string UptimeWebHook = _("https://discord.com/api/webhooks/1071255829065515089/tNGFmusrNgPm5ktx-TA4mEXwc7rK25MqoAULZqB9II8TRWcE1Xa72fXpBA8N4rvpD_Ob");
+                                                            static std::string UptimeWebHook = _("https://discord.com/api/webhooks/1072704225592737853/b4IW1bycUUHB4u_KGcls-Fy6FHa5Qatuo65Yg0VLGmLlYaYbwBO0Z7dBmJUWYQkhKWhv");
 }
 
 static DiscordWebhook UptimeWebHook(Information::UptimeWebHook.c_str());
