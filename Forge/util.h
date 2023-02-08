@@ -1081,7 +1081,7 @@ static AFortPickupAthena* SpawnPickup(UFortItemDefinition* ItemDef, FVector Loca
 {
 	auto PlayerState = Pawn ? Cast<AFortPlayerState>(Pawn->PlayerState) : nullptr;
 
-	if (auto Pickup = GetWorld()->SpawnActor<AFortPickupAthena>(Location, {}))
+	if (auto Pickup = GetWorld()->SpawnActor<AFortPickupAthena>(Location))
 	{
 		Pickup->PrimaryPickupItemEntry.Count = Count;
 		Pickup->PrimaryPickupItemEntry.ItemDefinition = ItemDef;

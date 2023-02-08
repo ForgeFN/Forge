@@ -3246,10 +3246,10 @@ public:
 	}
 
 	template <class T>
-	T* SpawnActor(FVector Location, FRotator Rotation, UClass* Class = T::StaticClass(), FVector Scale3D = { 1,1,1 })
+	T* SpawnActor(FVector Location, FRotator Rotation = FRotator{0, 0, 0}, UClass* Class = T::StaticClass(), FVector Scale3D = {1,1,1})
 	{
-		FQuat Quat;
-		FTransform Transform;
+		FQuat Quat{};
+		FTransform Transform{};
 
 		auto DEG_TO_RAD = 3.14159 / 180;
 		auto DIVIDE_BY_2 = DEG_TO_RAD / 2;

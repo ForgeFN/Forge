@@ -22,7 +22,7 @@ void AddHook(UFunction* Function, std::function<bool(UObject*, UFunction*, void*
 
 static void StreamLevel(std::string LevelName, FVector Location = {})
 {
-	auto BuildingFoundation = GetWorld()->SpawnActor<ABuildingFoundation3x3>(Location, {});
+	auto BuildingFoundation = GetWorld()->SpawnActor<ABuildingFoundation3x3>(Location);
 
 	BuildingFoundation->InitializeKismetSpawnedBuildingActor(BuildingFoundation, nullptr, false);
 
@@ -518,7 +518,7 @@ bool ReadyToStartMatchHook(AFortGameModeAthena* GameMode)
 		{
 			if (bUseBeacons)
 			{
-				BeaconHost = GetWorld()->SpawnActor<AOnlineBeaconHost>(FVector{}, FRotator{});
+				BeaconHost = GetWorld()->SpawnActor<AOnlineBeaconHost>(FVector{});
 
 				BeaconHost->ListenPort = 7777 - 1;
 
@@ -995,7 +995,7 @@ void ServerAttemptAircraftJumpHook(AFortPlayerController* PlayerController, FRot
 
 	static auto PawnClass = UObject::FindObject<UBlueprintGeneratedClass>("/Game/Athena/PlayerPawn_Athena.PlayerPawn_Athena_C");
 
-	auto Pawn = GetWorld()->SpawnActor<AFortPlayerPawnAthena>(Aircraft->K2_GetActorLocation(), FRotator(), PawnClass);
+	auto Pawn = GetWorld()->SpawnActor<AFortPlayerPawnAthena>(Aircraft->K2_GetActorLocation(), FRotator(0, 0, 0), PawnClass);
 	Pawn->CosmeticLoadout = PlayerController->CosmeticLoadoutPC;
 	Pawn->OnRep_CosmeticLoadout();
 	PlayerController->Possess(Pawn);
