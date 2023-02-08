@@ -1,9 +1,9 @@
 # Forge
-10.40 gs
+10.40 gameserver!!!!!!
 
-what is newo n here which isnt public?:
+what is new on here which isn't public?:
 
-- prper looting
+- proper looting
 - chest stars
 - vending machine colors
 - teams
@@ -14,5 +14,7 @@ what is newo n here which isnt public?:
 - some little gameplay features
 - pretty accurate harvesting rate
 - auto pickup i think?
+- pickup delay
+- repairing
 
-why did i release: bored
+why did I release: bored
