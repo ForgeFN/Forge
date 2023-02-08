@@ -2656,7 +2656,7 @@ void ClientOnPawnDiedHook(AFortPlayerControllerAthena* DeadPlayerController, FFo
 
 			if (!DeadPawn->bIsDBNO)
 			{
-				{ // DO NOT LEAK THIS SCOPE
+				{
 					static void (*removeFromAlivePlayers)(AFortGameModeAthena* GameMode, AFortPlayerControllerAthena* PlayerController, APlayerState* PlayerState, APawn* FinisherPawn,
 						UFortWeaponItemDefinition* FinishingWeapon, EDeathCause DeathCause, char a7)
 							= decltype(removeFromAlivePlayers)(__int64(GetModuleHandleW(0)) + 0x11D95E0);
@@ -2710,7 +2710,7 @@ static bool ServerPlaySquadQuickChatMessageHook(UObject* Object, UFunction*, voi
 	if (!Controller || !Params)
 		return false;
 
-	Controller->BroadcastRemoteClientInfo->RemoteChatEntry = Params->ChatEntry;
+	Controller->BroadcastRemoteClientInfo->RemoteChatEntry = Params->ChatEntry; // needed?
 	Controller->ServerPlayEmoteItem(UObject::FindObject<UAthenaEmojiItemDefinition>("/Game/Athena/Items/Cosmetics/Dances/Emoji/Emoji_Comm.Emoji_Comm"));
 
 	return false;
@@ -2758,7 +2758,7 @@ char BuildingDamageHook(ABuildingActor* BuildingActor, float DamageIg, FGameplay
 				if (!CurveTable)
 					CurveTable = UObject::FindObject<UCurveTable>("/Game/Athena/Balance/DataTables/AthenaResourceRates.AthenaResourceRates");
 
-				{ // DO NOT LEAK THIS SCOPE OF CODE
+				{
 					auto curveMap = ((UDataTable*)CurveTable)->RowMap;
 					auto curve = curveMap[BuildingResourceAmountOverride.RowName];
 
@@ -3693,7 +3693,7 @@ void OnCapsuleBeginOverlapHook(AFortPlayerPawn* Pawn, UPrimitiveComponent* Overl
 
 char (*PickupDelay)(AFortPickup* Pickup) = decltype(PickupDelay)(__int64(GetModuleHandleW(0)) + 0x16F7D10);
 
-char PickupDelayHook(AFortPickup* Pickup) // DONT LEAK
+char PickupDelayHook(AFortPickup* Pickup)
 {
 	auto Pawn = Cast<AFortPlayerPawnAthena>(Pickup->PickupLocationData.PickupTarget);
 
@@ -3867,7 +3867,7 @@ char PickupDelayHook(AFortPickup* Pickup) // DONT LEAK
 
 float (*GetMaxTickRate)(UGameEngine* Engine, float DeltaTime, bool bAllowFrameRateSmoothing) = decltype(GetMaxTickRate)(__int64(GetModuleHandleW(0)) + 0x3085220);
 
-float GetMaxTickRateHook(UGameEngine* Engine, float DeltaTime, bool bAllowFrameRateSmoothing) // DONT LEAK
+float GetMaxTickRateHook(UGameEngine* Engine, float DeltaTime, bool bAllowFrameRateSmoothing)
 {
 	// auto TickRate = GetMaxTickRate(Engine, DeltaTime, bAllowFrameRateSmoothing);
 	// std::cout << "TickRate: " << TickRate << " bAllowFrameRateSmoothing: " << bAllowFrameRateSmoothing << '\n';
