@@ -262,7 +262,7 @@ DWORD WINAPI Main(LPVOID)
     HookFunction2(DefaultFortPlayerStateAthena, ServerSetInAircraftFn, ServerSetInAircraftHook, (PVOID*)&ServerSetInAircraft);
 
     static auto ServerSetTeamFn = UObject::FindObject<UFunction>("/Script/FortniteGame.FortPlayerControllerAthena.ServerSetTeam");
-    HookFunction2(DefaultFortPCAthena, ServerSetTeamFn, ServerSetTeamHook, (PVOID*)&ServerSetTeamOriginal);
+    // HookFunction2(DefaultFortPCAthena, ServerSetTeamFn, ServerSetTeamHook, (PVOID*)&ServerSetTeamOriginal);
 
     static void (*RebootCardTeamCheck)(void*, void*) = decltype(RebootCardTeamCheck)((uintptr_t)GetModuleHandleW(0) + 0x1243CB0);
     static void (*GetPlayerViewPoint)(AFortPlayerControllerAthena* PlayerController, FVector& Location, FRotator& Rotation) = decltype(GetPlayerViewPoint)(__int64(GetModuleHandleW(0)) + 0x19A4780);
