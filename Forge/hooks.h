@@ -1436,7 +1436,8 @@ void HandleStartingNewPlayerHook(AFortGameModeAthena* GameMode, AFortPlayerContr
 
 	// GameState->PlayersLeft++;
 	GameState->OnRep_PlayersLeft();
-
+	
+	/*
 	std::cout << "AthenaProfile: " << NewPlayer->AthenaProfile << '\n';
 	std::cout << "MetadataProfile: " << NewPlayer->MetadataProfile << '\n';
 	std::cout << "MainMcpProfile: " << NewPlayer->MainMcpProfile << '\n';
@@ -1448,6 +1449,7 @@ void HandleStartingNewPlayerHook(AFortGameModeAthena* GameMode, AFortPlayerContr
 		std::cout << "GetRegisteredPlayerInfo()->CreativeModeProfile: " << NewPlayer->GetRegisteredPlayerInfo()->CreativeModeProfile << '\n';
 
 	std::cout << "SKIDD: " << NewPlayer->GetRegisteredPlayerInfo() << '\n';
+	*/
 
 	if (Globals::bCreative)
 	{
@@ -2641,6 +2643,8 @@ void ClientOnPawnDiedHook(AFortPlayerControllerAthena* DeadPlayerController, FFo
 		{
 			auto DroppableItems = GetDroppableItems(DeadPlayerController, nullptr, true);
 
+			std::cout << "DroppableItems.size(): " << DroppableItems.size() << '\n';
+
 			for (int i = 0; i < DroppableItems.size(); i++)
 			{
 				auto Item = DroppableItems[i];
@@ -2769,18 +2773,20 @@ char BuildingDamageHook(ABuildingActor* BuildingActor, float DamageIg, FGameplay
 					// auto DamageThatWillAffect = Damage >= HealthBeforeHit ? HealthBeforeHit : Damage;
 					auto DamageThatWillAffect = Damage;
 
+					/*
 					std::cout << "Damage: " << Damage << '\n';
 					// std::cout << "HealthBeforeHit: " << HealthBeforeHit << '\n';
 					std::cout << "DamageThatWillAffect: " << DamageThatWillAffect << '\n';
 					std::cout << "BuildingSMActor->GetMaxHealth() / DamageThatWillAffect: " << BuildingSMActor->GetMaxHealth() / DamageThatWillAffect << '\n';
 					std::cout << "Out: " << Out << '\n';
 					std::cout << "Out / BuildingSMActor->GetMaxHealth() / DamageThatWillAffect: " << Out / (BuildingSMActor->GetMaxHealth() / DamageThatWillAffect) << '\n';
+					*/
 
 					float test = 0;
 					TEnumAsByte<EEvaluateCurveTableResult> test2;
 					int x = (BuildingSMActor->GetMaxHealth() / DamageThatWillAffect) / 100;
 					UDataTableFunctionLibrary::EvaluateCurveTableRow(CurveTable, BuildingResourceAmountOverride.RowName, x, L"", &test2, &test);
-					std::cout << "test: " << test << '\n';
+					// std::cout << "test: " << test << '\n';
 
 					auto skid = Out / /* round */(BuildingSMActor->GetMaxHealth() / DamageThatWillAffect);
 
@@ -3349,7 +3355,7 @@ __int64 PickTeamHook(AFortGameModeAthena* GameMode, unsigned __int8 preferredTea
 
 	static int CurrentTeamMembers = 0; // bad
 
-	std::cout << "Dru!\n";
+	// std::cout << "Dru!\n";
 
 	if (!Playlist)
 	{

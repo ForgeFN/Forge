@@ -1049,7 +1049,9 @@ static std::vector<UFortWorldItem*> GetDroppableItems(AFortPlayerControllerAthen
 			auto ItemEntry = ItemInstance->ItemEntry;
 			auto ItemDefiniton = (UFortWorldItemDefinition*)ItemEntry.ItemDefinition;
 
-			if (ItemInstance->CanBeDropped() && ItemInstance->ItemEntry.ItemDefinition != IgnoreDef && !bCheckOnDeath ? true : ItemDefiniton->bDropOnDeath)
+			// std::cout << std::format("[{}] {} {}\n", i, (int)ItemDefiniton->bCanBeDropped, (!bCheckOnDeath ? true : ItemDefiniton->bDropOnDeath));
+
+			if (ItemDefiniton->bCanBeDropped && ItemInstance->ItemEntry.ItemDefinition != IgnoreDef /* && (!bCheckOnDeath ? true : ItemDefiniton->bDropOnDeath) */)
 				DroppableItems.push_back(ItemInstance);
 		}
 	}

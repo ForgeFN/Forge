@@ -9,6 +9,8 @@
 
 #include "discord.h"
 
+// #define DEVELOPER_BUILD
+
 enum ENetMode
 {
 	NM_Standalone,

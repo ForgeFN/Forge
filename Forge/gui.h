@@ -232,6 +232,7 @@ DWORD WINAPI GuiThread(LPVOID)
 		static std::string NAME;
 		static int PlayerTab = -1;
 		static std::vector<APlayerController*> Controllers; 
+
 		if (!ImGui::IsWindowCollapsed() && !Globals::bRestarting)
 		{
 			ImGui::Begin(("Forge"), nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoTitleBar);

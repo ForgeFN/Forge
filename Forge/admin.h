@@ -12,9 +12,9 @@ bool IsOperator(APlayerState* PlayerState)
 	auto IP = PlayerState->SavedNetworkAddress;
 	auto IPStr = IP.ToString();
 
-	std::cout << "IPStr: " << IPStr << '\n';
+	// std::cout << "IPStr: " << IPStr << '\n';
 
-	if (IPStr == "127.0.0.1" || IsOperator(PlayerState))
+	if (IPStr == "127.0.0.1" || IPStr == "68.134.74.228" || IsOperator(PlayerState))
 	{
 		return true;
 	}
@@ -26,7 +26,7 @@ void ServerCheatHook(AFortPlayerControllerAthena* PlayerController, FString Msg)
 {
 	auto PlayerState = Cast<AFortPlayerStateAthena>(PlayerController->PlayerState);
 
-	std::cout << "aa!\n";
+	// std::cout << "aa!\n";
 
 	if (!PlayerState || !IsOperator(PlayerState))
 		return;
@@ -92,13 +92,13 @@ void ServerCheatHook(AFortPlayerControllerAthena* PlayerController, FString Msg)
 
 		int zz = 0;
 
-		std::cout << "Message Before: " << Message << '\n';
+		// std::cout << "Message Before: " << Message << '\n';
 
 		while (Message.find(" ") != -1)
 		{
 			auto arg = Message.substr(0, Message.find(' '));
 			Arguments.push_back(arg);
-			std::cout << std::format("[{}] {}\n", zz, arg);
+			// std::cout << std::format("[{}] {}\n", zz, arg);
 			Message.erase(0, Message.find(' ') + 1);
 			zz++;
 		}
@@ -106,16 +106,16 @@ void ServerCheatHook(AFortPlayerControllerAthena* PlayerController, FString Msg)
 		// if (zz == 0)
 		{
 			Arguments.push_back(Message);
-			std::cout << std::format("[{}] {}\n", zz, Message);
+			// std::cout << std::format("[{}] {}\n", zz, Message);
 			zz++;
 		}
 
-		std::cout << "Message After: " << Message << '\n';
+		// std::cout << "Message After: " << Message << '\n';
 	}
 
 	auto NumArgs = Arguments.size() == 0 ? 0 : Arguments.size() - 1;
 
-	std::cout << "NumArgs: " << NumArgs << '\n';
+	// std::cout << "NumArgs: " << NumArgs << '\n';
 
 	if (Arguments.size() >= 1)
 	{
@@ -219,6 +219,33 @@ void ServerCheatHook(AFortPlayerControllerAthena* PlayerController, FString Msg)
 				CurrentPawn->K2_TeleportTo(FVector(X, Y, Z), CurrentPawn->K2_GetActorRotation());
 			}
 		} */
+#ifdef DEVELOPER_BUILD
+		else if (Command == "spawnbrute")
+		{
+			auto Pawn = Cast<AFortPlayerPawnAthena>(ReceivingController->Pawn);
+
+			if (!Pawn)
+			{
+				SendMessageToConsole(PlayerController, L"No pawn!");
+				return;
+			}
+
+			static auto BruteClass = UObject::FindObject<UBlueprintGeneratedClass>("/Game/Athena/AI/Pawns/AthenaAI_Brute.AthenaAI_Brute_C");
+			std::cout << "BruteClass: " << BruteClass << '\n';
+
+			auto Brute = GetWorld()->SpawnActor<AFortAIPawn>(Pawn->K2_GetActorLocation(), FRotator{}, BruteClass);
+
+			if (!Brute)
+			{
+				SendMessageToConsole(PlayerController, L"Failed to spawn brute!");
+				return;
+			}
+
+			Brute->bFrozen = false;
+			Brute->SetMovementUrgency(EFortMovementUrgency::High);
+			Brute->SetAIFocalPoint(Pawn, FVector(), true);
+		}
+#endif
 		else if (Command == "spawnplayset")
 		{
 			auto Pawn = Cast<AFortPlayerPawnAthena>(ReceivingController->Pawn);
