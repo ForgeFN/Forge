@@ -67,6 +67,21 @@ DWORD WINAPI Main(LPVOID)
     VirtualProtect(DefaultFortGameModeAthena->VFT, (GetGameSessionClassOffset + 8), dwProtection, &dwTemp); */
 
     auto PlayerController = GetWorld()->OwningGameInstance->LocalPlayers[0]->PlayerController;
+
+    UKismetSystemLibrary::ExecuteConsoleCommand(GetWorld(), L"log LogProfileSys VeryVerbose", PlayerController);
+    UKismetSystemLibrary::ExecuteConsoleCommand(GetWorld(), L"log LogFortVolumeManager VeryVerbose", PlayerController);
+    UKismetSystemLibrary::ExecuteConsoleCommand(GetWorld(), L"log LogPlaysetLevelStream VeryVerbose", PlayerController);
+    UKismetSystemLibrary::ExecuteConsoleCommand(GetWorld(), L"log LogFortCustomization VeryVerbose", PlayerController);
+    UKismetSystemLibrary::ExecuteConsoleCommand(GetWorld(), L"log LogFortCosmetics VeryVerbose", PlayerController);
+    UKismetSystemLibrary::ExecuteConsoleCommand(GetWorld(), L"log LogFort VeryVerbose", PlayerController);
+    UKismetSystemLibrary::ExecuteConsoleCommand(GetWorld(), L"log LogFortInventory VeryVerbose", PlayerController);
+    UKismetSystemLibrary::ExecuteConsoleCommand(GetWorld(), L"log LogFortPawnScriptedBehavior VeryVerbose", PlayerController);
+    UKismetSystemLibrary::ExecuteConsoleCommand(GetWorld(), L"log LogFortAI VeryVerbose", PlayerController);
+    UKismetSystemLibrary::ExecuteConsoleCommand(GetWorld(), L"log LogFortLoot VeryVerbose", PlayerController);
+    UKismetSystemLibrary::ExecuteConsoleCommand(GetWorld(), L"log LogFortTeams VeryVerbose", PlayerController);
+    UKismetSystemLibrary::ExecuteConsoleCommand(GetWorld(), L"log LogPlayerPawnAthena VeryVerbose", PlayerController);
+    UKismetSystemLibrary::ExecuteConsoleCommand(GetWorld(), L"log LogOnlineGame VeryVerbose", PlayerController);
+
     PlayerController->SwitchLevel(L"Athena_Terrain");
 
     GetWorld()->OwningGameInstance->LocalPlayers.Remove(0);
@@ -79,7 +94,15 @@ DWORD WINAPI Main(LPVOID)
     CREATE_HOOK(rettrue, CollectGarbage);
 
     CREATE_HOOK(GetNetModeHook, GetNetMode);
-    CREATE_HOOK(IsNoMCPHook, IsNoMCP);
+
+    if (true)
+    {
+        CREATE_HOOK(IsNoMCPHook, IsNoMCP);
+    }
+    else
+    {
+        CREATE_HOOK(DispatchRequestHook, DispatchRequestOriginal);
+    }
 
     __int64 (*sub_7FF68F3C56B0)(__int64* a1, __int64 a2, char a3) = decltype(sub_7FF68F3C56B0)(__int64(GetModuleHandleW(0)) + 0x10C56B0);
     // CREATE_HOOK(crashaf, sub_7FF68F3C56B0);
@@ -202,7 +225,7 @@ DWORD WINAPI Main(LPVOID)
     static auto ServerAbilityRPCBatchFn = UObject::FindObject<UFunction>("/Script/GameplayAbilities.AbilitySystemComponent.ServerAbilityRPCBatch");
     HookFunction(DefaultFortAbilitySystemComp, ServerAbilityRPCBatchFn, ServerAbilityRPCBatchHook, (PVOID*)&ServerAbilityRPCBatch);
     
-    int ServerHandlePickupIndex = 0xE38;
+    // int ServerHandlePickupIndex = 0xE38;
     static auto ServerHandlePickupFn = UObject::FindObject<UFunction>("/Script/FortniteGame.FortPlayerPawn.ServerHandlePickup");
     HookFunction(DefaultFortPawnAthena, ServerHandlePickupFn, ServerHandlePickupHook/*, nullptr, false, ServerHandlePickupIndex*/);
 
@@ -264,9 +287,12 @@ DWORD WINAPI Main(LPVOID)
     static auto ServerSetTeamFn = UObject::FindObject<UFunction>("/Script/FortniteGame.FortPlayerControllerAthena.ServerSetTeam");
     // HookFunction2(DefaultFortPCAthena, ServerSetTeamFn, ServerSetTeamHook, (PVOID*)&ServerSetTeamOriginal);
 
+    static auto ServerChoosePartFn = UObject::FindObject<UFunction>("/Script/FortniteGame.FortPlayerPawn.ServerChoosePart");
+    HookFunction2(DefaultFortPawnAthena, ServerChoosePartFn, ServerChoosePartHook, (PVOID*)&ServerChoosePartOriginal);
+
     static void (*RebootCardTeamCheck)(void*, void*) = decltype(RebootCardTeamCheck)((uintptr_t)GetModuleHandleW(0) + 0x1243CB0);
     static void (*GetPlayerViewPoint)(AFortPlayerControllerAthena* PlayerController, FVector& Location, FRotator& Rotation) = decltype(GetPlayerViewPoint)(__int64(GetModuleHandleW(0)) + 0x19A4780);
-       
+
     CREATE_HOOK(ProcessEventHook, ProcessEvent);
     CREATE_HOOK(GetPlayerViewPointHook, GetPlayerViewPoint);
     CREATE_HOOK(HandleReloadCostHook, HandleReloadCost);
@@ -277,6 +303,7 @@ DWORD WINAPI Main(LPVOID)
     CREATE_HOOK(GenericArray_GetHook, GenericArray_Get);
     CREATE_HOOK(BuildingDamageHook, BuildingDamageOriginal);
     // CREATE_HOOK(retfalse, RebootCardTeamCheck);
+    CREATE_HOOK(SetCustomizationLoadoutDataHook, SetCustomizationLoadoutDataOriginal);
     CREATE_HOOK(GetSquadIdForCurrentPlayerHook, GetSquadIdForCurrentPlayer);
     CREATE_HOOK(SpawnPawnOrSOmethingHook, SpawnPawnOrSOmething);
     CREATE_HOOK(PickupDelayHook, PickupDelay);
@@ -288,9 +315,6 @@ DWORD WINAPI Main(LPVOID)
     // CREATE_HOOK(IsPlaysetWithinVolumeBoundsHook, IsPlaysetWithinVolumeBoundsOriginal);
 
     // HookCall((uint8_t*)(__int64(GetModuleHandleW(0)) + 0x1C59EC2), (uint8_t*)rettrue);
-
-    UKismetSystemLibrary::ExecuteConsoleCommand(GetWorld(), L"log LogFortVolumeManager VeryVerbose", nullptr);
-    UKismetSystemLibrary::ExecuteConsoleCommand(GetWorld(), L"log LogPlaysetLevelStream VeryVerbose", nullptr);
 
     std::cout << "Finished hooks!\n";
     

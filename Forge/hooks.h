@@ -58,10 +58,10 @@ void ShowFoundation(ABuildingFoundation* Foundation)
 	Foundation->bServerStreamedInLevel = true;
 	Foundation->OnRep_ServerStreamedInLevel();
 
-	Foundation->DynamicFoundationRepData.Translation = Foundation->K2_GetActorLocation();
-	Foundation->DynamicFoundationRepData.Rotation = Quaternion(Foundation->K2_GetActorRotation());
+	// Foundation->DynamicFoundationRepData.Translation = Foundation->K2_GetActorLocation();
+	// Foundation->DynamicFoundationRepData.Rotation = Quaternion(Foundation->K2_GetActorRotation());
 	Foundation->DynamicFoundationRepData.EnabledState = EDynamicFoundationEnabledState::Enabled;
-	Foundation->FoundationEnabledState = EDynamicFoundationEnabledState::Enabled;
+	// Foundation->FoundationEnabledState = EDynamicFoundationEnabledState::Enabled;
 	Foundation->OnRep_DynamicFoundationRepData();
 
 	Foundation->SetDynamicFoundationEnabled(true);
@@ -82,6 +82,7 @@ static void ActivateAbility(UAbilitySystemComponent* AbilitySystemComponent, FGa
 
 	if (!Spec || !Spec->Ability)
 	{
+		std::cout << "no spec!\n";
 		AbilitySystemComponent->ClientActivateAbilityFailed(Ability, PredictionKey.Current);
 		return;
 	}
@@ -94,6 +95,7 @@ static void ActivateAbility(UAbilitySystemComponent* AbilitySystemComponent, FGa
 
 	if (!InternalTryActivateAbility(AbilitySystemComponent, Ability, PredictionKey, &InstancedAbility, nullptr, EventData))
 	{
+		std::cout << "activateability failed!\n";
 		AbilitySystemComponent->ClientActivateAbilityFailed(Ability, PredictionKey.Current);
 		Spec->InputPressed = false;
 
@@ -196,12 +198,14 @@ void SpawnFloorLoot()
 
 	float UpZ = 50;
 
+	EFortPickupSourceTypeFlag SpawnFlag = EFortPickupSourceTypeFlag::Container;
+
 	for (int i = 0; i < SpawnIsland_FloorLoot_Actors.Num(); i++)
 	{
 		ABuildingContainer* CurrentActor = (ABuildingContainer*)SpawnIsland_FloorLoot_Actors[i];
 
-		CurrentActor->K2_DestroyActor();
-		continue;
+		// CurrentActor->K2_DestroyActor();
+		// continue;
 
 		auto Location = CurrentActor->K2_GetActorLocation();
 		Location.Z += UpZ;
@@ -211,7 +215,7 @@ void SpawnFloorLoot()
 		if (LootDrops.size())
 		{
 			for (auto& LootDrop : LootDrops)
-				SpawnPickup(LootDrop, Location, EFortPickupSourceTypeFlag::FloorLoot);
+				SpawnPickup(LootDrop, Location, SpawnFlag);
 		}
 	}
 
@@ -223,9 +227,9 @@ void SpawnFloorLoot()
 	{
 		ABuildingContainer* CurrentActor = (ABuildingContainer*)BRIsland_FloorLoot_Actors[i];
 
-		CurrentActor->K2_DestroyActor();
+		// CurrentActor->K2_DestroyActor();
 		spawned++;
-		continue;
+		// continue;
 
 		auto Location = CurrentActor->K2_GetActorLocation();
 		Location.Z += UpZ;
@@ -237,10 +241,8 @@ void SpawnFloorLoot()
 
 		if (LootDrops.size())
 		{
-			spawned++;
-
 			for (auto& LootDrop : LootDrops)
-				SpawnPickup(LootDrop, Location, EFortPickupSourceTypeFlag::FloorLoot);
+				SpawnPickup(LootDrop, Location, SpawnFlag);
 		}
 	}
 
@@ -775,6 +777,19 @@ bool ReadyToStartMatchHook(AFortGameModeAthena* GameMode)
 void ServerAcknowledgePossessionHook(APlayerController* PlayerController, APawn* P)
 {
 	PlayerController->AcknowledgedPawn = P;
+
+	auto PC = Cast<AFortPlayerController>(PlayerController);
+	auto PlayerState = Cast<AFortPlayerState>(PlayerController->PlayerState);
+	auto PawnAsAthena = Cast<AFortPlayerPawnAthena>(P);
+
+	if (PlayerState)
+	{
+		PawnAsAthena->CosmeticLoadout = PC->CosmeticLoadoutPC;
+		PawnAsAthena->OnRep_CosmeticLoadout();
+
+		ApplyCID(PlayerState, PawnAsAthena->CosmeticLoadout.Character, PawnAsAthena);
+		// ApplyCustomizationToCharacter(PlayerState);
+	}
 }
 
 using FArrayProperty = void;
@@ -1204,6 +1219,40 @@ char IsPlaysetWithinVolumeBoundsHook(__int64 VolumeManager, float* StartLocation
 	return true;
 }
 
+__int64 (*SetCustomizationLoadoutDataOriginal)(AFortPlayerPawn* Pawn, FFortAthenaLoadout NewLoadout) = decltype(SetCustomizationLoadoutDataOriginal)(
+	__int64(GetModuleHandleW(0)) + 0x1979D00
+	);
+
+__int64 SetCustomizationLoadoutDataHook(AFortPlayerPawn* Pawn, FFortAthenaLoadout NewLoadout)
+{
+	return SetCustomizationLoadoutDataOriginal(Pawn, NewLoadout);
+
+	auto Controller = Cast<AFortPlayerController>(Pawn->Controller);
+
+	if (!Controller)
+	{
+		std::cout << "No controller!\n";
+		return 0;
+	}
+
+	std::cout << std::format("setacjwugtwugu: 0x{:x}\n", __int64(_ReturnAddress()) - __int64(GetModuleHandleW(0)));
+
+	// NewLoadout = Controller->CosmeticLoadoutPC;
+	return SetCustomizationLoadoutDataOriginal(Pawn, NewLoadout);
+}
+
+__int64 (*DispatchRequestOriginal)(__int64 a1, __int64* a2, int a3) = decltype(DispatchRequestOriginal)(__int64(GetModuleHandleW(0)) + 0xBAED60);
+
+__int64 DispatchRequestHook(__int64 a1, __int64* a2, int a3)
+{
+	std::cout << std::format("DispatchRequest: 0x{:x}\n", __int64(_ReturnAddress()) - __int64(GetModuleHandleW(0)));
+	std::cout << "a3: " << a3 << '\n';
+
+	a3 = 3;
+
+	return DispatchRequestOriginal(a1, a2, a3);
+}
+
 void HandleStartingNewPlayerHook(AFortGameModeAthena* GameMode, AFortPlayerControllerAthena* NewPlayer)
 {
 	auto GameState = Cast<AFortGameStateAthena>(GameMode->GameState);
@@ -1298,28 +1347,37 @@ void HandleStartingNewPlayerHook(AFortGameModeAthena* GameMode, AFortPlayerContr
 	// static auto BodyPart = UObject::FindObject<UCustomCharacterPart>("/Game/Characters/CharacterParts/Female/Medium/Bodies/F_Med_Soldier_01.F_Med_Soldier_01");
 	static auto BackpackPart = UObject::FindObject<UCustomCharacterPart>("/Game/Characters/CharacterParts/Backpacks/NoBackpack.NoBackpack");
 
-	static UFortHeroType* HeroTypeToUse = UObject::FindObject<UFortHeroType>("/Game/Athena/Heroes/HID_058_Athena_Commando_M_SkiDude_GER.HID_058_Athena_Commando_M_SkiDude_GER");
-	PlayerState->HeroType = HeroTypeToUse;
-
-	NewPlayer->CosmeticLoadoutPC.Character = GetRandomObjectOfClass<UAthenaCharacterItemDefinition>(true, true);
-	NewPlayer->CosmeticLoadoutPC.Glider = GetRandomObjectOfClass<UAthenaGliderItemDefinition>(true, true);
-	NewPlayer->CosmeticLoadoutPC.SkyDiveContrail = GetRandomObjectOfClass<UAthenaSkyDiveContrailItemDefinition>(true, true);
-	NewPlayer->CosmeticLoadoutPC.Pickaxe = PickaxeDefinition;
-	NewPlayer->CosmeticLoadoutPC.bIsDefaultCharacter = false;
-
-	for (int i = 0; i < 7; i++)
+	if (false)
 	{
-		NewPlayer->CosmeticLoadoutPC.ItemWraps.Add(GetRandomObjectOfClass<UAthenaItemWrapDefinition>(true, true));
+		static UFortHeroType* HeroTypeToUse = UObject::FindObject<UFortHeroType>("/Game/Athena/Heroes/HID_058_Athena_Commando_M_SkiDude_GER.HID_058_Athena_Commando_M_SkiDude_GER");
+		PlayerState->HeroType = HeroTypeToUse;
+		PlayerState->OnRep_HeroType();
+
+		NewPlayer->CosmeticLoadoutPC.Character = GetRandomObjectOfClass<UAthenaCharacterItemDefinition>(true, true);
+		NewPlayer->CosmeticLoadoutPC.Glider = GetRandomObjectOfClass<UAthenaGliderItemDefinition>(true, true);
+		NewPlayer->CosmeticLoadoutPC.SkyDiveContrail = GetRandomObjectOfClass<UAthenaSkyDiveContrailItemDefinition>(true, true);
+		NewPlayer->CosmeticLoadoutPC.Pickaxe = PickaxeDefinition;
+		NewPlayer->CosmeticLoadoutPC.bIsDefaultCharacter = false;
+
+		for (int i = 0; i < 7; i++)
+		{
+			NewPlayer->CosmeticLoadoutPC.ItemWraps.Add(GetRandomObjectOfClass<UAthenaItemWrapDefinition>(true, true));
+		}
+
+		// PlayerState->CharacterData.Parts[0] = HeadPart;
+		// PlayerState->CharacterData.Parts[1] = BodyPart;
+
+		PlayerState->CharacterData.Parts[3] = BackpackPart;
+		PlayerState->OnRep_CharacterData();
 	}
-	
-	ApplyCID(PlayerState, NewPlayer->CosmeticLoadoutPC.Character);
-
-	// PlayerState->CharacterData.Parts[0] = HeadPart;
-	// PlayerState->CharacterData.Parts[1] = BodyPart;
-	PlayerState->CharacterData.Parts[3] = BackpackPart;
-	PlayerState->OnRep_CharacterData();
-
-	// ApplyCustomizationToCharacter(PlayerState);
+	else
+	{
+		NewPlayer->CosmeticLoadoutPC.Character = GetRandomObjectOfClass<UAthenaCharacterItemDefinition>(true, true);
+		NewPlayer->CosmeticLoadoutPC.Glider = GetRandomObjectOfClass<UAthenaGliderItemDefinition>(true, true);
+		NewPlayer->CosmeticLoadoutPC.SkyDiveContrail = GetRandomObjectOfClass<UAthenaSkyDiveContrailItemDefinition>(true, true);
+		NewPlayer->CosmeticLoadoutPC.Pickaxe = PickaxeDefinition;
+		NewPlayer->CosmeticLoadoutPC.bIsDefaultCharacter = false;
+	}
 
 	static auto GameplayAbilitySet = UObject::FindObject<UFortAbilitySet>("/Game/Abilities/Player/Generic/Traits/DefaultPlayer/GAS_AthenaPlayer.GAS_AthenaPlayer");
 	GiveFortAbilitySet(PlayerState, GameplayAbilitySet);
@@ -1389,7 +1447,9 @@ void HandleStartingNewPlayerHook(AFortGameModeAthena* GameMode, AFortPlayerContr
 					if (!GameplayEffectClass)
 						continue;
 
-					PlayerState->AbilitySystemComponent->BP_ApplyGameplayEffectToSelf(GameplayEffectClass, GameplayEffectInfo.Level, FGameplayEffectContextHandle());
+					FGameplayEffectContextHandle contextHandle{};
+
+					PlayerState->AbilitySystemComponent->BP_ApplyGameplayEffectToSelf(GameplayEffectClass, GameplayEffectInfo.Level, contextHandle);
 				}
 			}
 		}
@@ -1420,10 +1480,10 @@ void HandleStartingNewPlayerHook(AFortGameModeAthena* GameMode, AFortPlayerContr
 		int ToSubtractBy = 2; // GameState->CurrentPlaylistInfo.BasePlaylist->MaxSquadSize; // PlayerState->TeamIndex - 3; // 1;
 		PlayerState->SquadId = PlayerState->TeamIndex /*  + PlayerState->PlayerTeam->TeamMembers.Num() */ - ToSubtractBy;
 		
-		PlayerState->OnRep_PlayerTeam();
+		/* PlayerState->OnRep_PlayerTeam();
 		PlayerState->OnRep_PlayerTeamPrivate();
 		PlayerState->OnRep_TeamIndex(0);
-		PlayerState->OnRep_SquadId();
+		PlayerState->OnRep_SquadId(); */
 
 		FGameMemberInfo MemberInfo{ -1, -1, -1 };
 		MemberInfo.TeamIndex = PlayerState->TeamIndex;
@@ -1437,7 +1497,6 @@ void HandleStartingNewPlayerHook(AFortGameModeAthena* GameMode, AFortPlayerContr
 	// GameState->PlayersLeft++;
 	GameState->OnRep_PlayersLeft();
 	
-	/*
 	std::cout << "AthenaProfile: " << NewPlayer->AthenaProfile << '\n';
 	std::cout << "MetadataProfile: " << NewPlayer->MetadataProfile << '\n';
 	std::cout << "MainMcpProfile: " << NewPlayer->MainMcpProfile << '\n';
@@ -1449,7 +1508,6 @@ void HandleStartingNewPlayerHook(AFortGameModeAthena* GameMode, AFortPlayerContr
 		std::cout << "GetRegisteredPlayerInfo()->CreativeModeProfile: " << NewPlayer->GetRegisteredPlayerInfo()->CreativeModeProfile << '\n';
 
 	std::cout << "SKIDD: " << NewPlayer->GetRegisteredPlayerInfo() << '\n';
-	*/
 
 	if (Globals::bCreative)
 	{
@@ -1569,6 +1627,21 @@ bool TeleportPlayerToLinkedVolumeHook(UObject* Object, UFunction*, void* Paramet
 	return false;
 }
 
+void (*ServerChoosePartOriginal)(AFortPlayerPawn* Pawn, TEnumAsByte<EFortCustomPartType> Part, UCustomCharacterPart* ChosenCharacterPart);
+
+void ServerChoosePartHook(AFortPlayerPawn* Pawn, TEnumAsByte<EFortCustomPartType> Part, UCustomCharacterPart* ChosenCharacterPart)
+{
+	if (!ChosenCharacterPart && Part != EFortCustomPartType::Backpack)
+	{
+		std::cout << "null!\n";
+		return;
+	}
+
+	std::cout << std::format("scp: 0x{:x}\n", __int64(_ReturnAddress()) - __int64(GetModuleHandleW(0)));
+
+	return ServerChoosePartOriginal(Pawn, Part, ChosenCharacterPart);
+}
+
 void (*ServerLoadingScreenDropped)(AFortPlayerControllerAthena* PlayerController);
 
 void ServerLoadingScreenDroppedHook(AFortPlayerControllerAthena* PlayerController)
@@ -1577,9 +1650,14 @@ void ServerLoadingScreenDroppedHook(AFortPlayerControllerAthena* PlayerControlle
 
 	// static FFortAthenaLoadout (*GetLoadout)(UFortMcpProfileAthena* AthenaProfile, char a2) = decltype(GetLoadout)(__int64(GetModuleHandleW(0)) + 0x1F15AB0);
 
-	// auto Loadout = GetLoadout(PlayerController->AthenaProfile, false);
+	auto Loadout = PlayerController->CosmeticLoadoutPC; // GetLoadout(PlayerController->AthenaProfile, false);
 
-	// std::cout << "Loadout.Backpack: " << Loadout.Backpack << '\n';
+	std::cout << "Loadout.Backpack: " << Loadout.Backpack << '\n';
+
+	if (Loadout.Backpack)
+	{
+		std::cout << "Loadout.Backpack Name: " << Loadout.Backpack->GetFullName() << '\n';
+	}
 
 	auto MyFortPawn = PlayerController->MyFortPawn;
 
@@ -3163,7 +3241,7 @@ static void ServerBeginEditingBuildingActorHook(AFortPlayerController* PlayerCon
 __int64 (*AFortGameSessionDedicatedAthena_SetMatchStartTimeOriginal)(__int64 a1, __int64 a2) = decltype(AFortGameSessionDedicatedAthena_SetMatchStartTimeOriginal)
 (__int64(GetModuleHandleW(0)) + 0x17F9660);
 
-__int64 AFortGameSessionDedicatedAthena_SetMatchStartTimeHook(__int64 a1, __int64 a2)
+__int64 AFortGameSessionDedicatedAthena_SetMatchStartTimeHook(__int64 a1, __int64 a2) // only required for nomcp
 {
 	std::cout << "L!\n";
 	return 0;
@@ -3694,8 +3772,6 @@ void OnCapsuleBeginOverlapHook(AFortPlayerPawn* Pawn, UPrimitiveComponent* Overl
 
 	return OnCapsuleBeginOverlapOriginal(Pawn, OverlappedComp, OtherActor);
 }
-
-
 
 char (*PickupDelay)(AFortPickup* Pickup) = decltype(PickupDelay)(__int64(GetModuleHandleW(0)) + 0x16F7D10);
 

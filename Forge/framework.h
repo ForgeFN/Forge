@@ -9,7 +9,7 @@
 
 #include "discord.h"
 
-// #define DEVELOPER_BUILD
+#define DEVELOPER_BUILD
 
 enum ENetMode
 {
@@ -235,16 +235,27 @@ static void ApplyCID(AFortPlayerState* PlayerState, UAthenaCharacterItemDefiniti
 		{
 			auto& CharacterParts = Specialization->CharacterParts;
 
+			bool aa;
+
+			TArray<UCustomCharacterPart*> CharacterPartsaa;
+
 			for (int z = 0; z < CharacterParts.Num(); z++)
 			{
 				auto& CharacterPartSoft = CharacterParts[z];
 				auto CharacterPart = CharacterPartSoft.Get();
+
+				CharacterPartsaa.Add(CharacterPart);
+
+				continue;
 
 				if (!Pawn)
 					PlayerState->CharacterData.Parts[z] = CharacterPart;
 				else
 					Pawn->ServerChoosePart((EFortCustomPartType)z, CharacterPart);
 			}
+
+			UFortKismetLibrary::ApplyCharacterCosmetics(GetWorld(), CharacterPartsaa, PlayerState, &aa);
+			CharacterPartsaa.Free();
 		}
 	}
 
@@ -337,7 +348,11 @@ inline APawn* SpawnDefaultPawnForHook(AGameModeBase* GameMode, AController* NewP
 			PawnAsAthena->CosmeticLoadout = Controller->CosmeticLoadoutPC;
 			PawnAsAthena->OnRep_CosmeticLoadout();
 
-			// ApplyCID(PlayerState, PawnAsAthena->CosmeticLoadout.Character);
+			ApplyCID(PlayerState, Controller->CosmeticLoadoutPC.Character);
+
+			// ApplyCustomizationToCharacter(PlayerState);
+
+			// ApplyCID(PlayerState, PawnAsAthena->CosmeticLoadout.Character, PawnAsAthena);
 
 			if (bIsRespawning)
 			{

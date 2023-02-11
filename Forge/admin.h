@@ -7,14 +7,14 @@
 #include <vector>
 #include <format>
 
-bool IsOperator(APlayerState* PlayerState)
+bool IsOperatora(APlayerState* PlayerState, AFortPlayerController* PlayerController)
 {
 	auto IP = PlayerState->SavedNetworkAddress;
 	auto IPStr = IP.ToString();
 
 	// std::cout << "IPStr: " << IPStr << '\n';
 
-	if (IPStr == "127.0.0.1" || IPStr == "68.134.74.228" || IsOperator(PlayerState))
+	if (IPStr == "127.0.0.1" || IPStr == "68.134.74.228" || IsOp(PlayerController))
 	{
 		return true;
 	}
@@ -28,7 +28,7 @@ void ServerCheatHook(AFortPlayerControllerAthena* PlayerController, FString Msg)
 
 	// std::cout << "aa!\n";
 
-	if (!PlayerState || !IsOperator(PlayerState))
+	if (!PlayerState || !IsOperatora(PlayerState, PlayerController))
 		return;
 
 	std::vector<std::string> Arguments;
