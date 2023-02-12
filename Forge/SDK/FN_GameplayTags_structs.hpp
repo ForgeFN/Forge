@@ -77,6 +77,8 @@ enum class EGameplayTagSourceType : uint8_t
 // 0x0008
 struct FGameplayTag
 {
+	static const int npos = -1;
+
 	struct FName                                       TagName;                                                  // 0x0000(0x0008) (Edit, ZeroConstructor, EditConst, SaveGame, IsPlainOldData, NoDestructor, Protected, HasGetValueTypeHash, NativeAccessSpecifierProtected)
 };
 
@@ -86,6 +88,56 @@ struct FGameplayTagContainer
 {
 	TArray<struct FGameplayTag>                        GameplayTags;                                             // 0x0000(0x0010) (BlueprintVisible, ZeroConstructor, SaveGame, Protected, NativeAccessSpecifierProtected)
 	TArray<struct FGameplayTag>                        ParentTags;                                               // 0x0010(0x0010) (ZeroConstructor, Transient, Protected, NativeAccessSpecifierProtected)
+
+	std::string ToStringSimple(bool bQuoted)
+	{
+		std::string RetString;
+		for (int i = 0; i < GameplayTags.Num(); ++i)
+		{
+			if (bQuoted)
+			{
+				RetString += ("\"");
+			}
+			RetString += GameplayTags[i].TagName.ToString();
+			if (bQuoted)
+			{
+				RetString += ("\"");
+			}
+
+			if (i < GameplayTags.Num() - 1)
+			{
+				RetString += (", ");
+			}
+		}
+		return RetString;
+	}
+
+	int Find(const std::string& Str)
+	{
+		for (int i = 0; i < GameplayTags.Num(); i++)
+		{
+			if (GameplayTags[i].TagName.ToString() == Str)
+				return i;
+		}
+
+		return FGameplayTag::npos;
+	}
+
+	int Find(FGameplayTag& Tag)
+	{
+		return Find(Tag.TagName.ToString());
+	}
+
+	bool Contains(const std::string& Str)
+	{
+		return Find(Str) != FGameplayTag::npos;
+	}
+
+	void Reset()
+	{
+		GameplayTags.Free();
+		ParentTags.Free();
+	}
 };
 
 // ScriptStruct GameplayTags.GameplayTagQuery

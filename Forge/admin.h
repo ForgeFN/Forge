@@ -219,6 +219,24 @@ void ServerCheatHook(AFortPlayerControllerAthena* PlayerController, FString Msg)
 				CurrentPawn->K2_TeleportTo(FVector(X, Y, Z), CurrentPawn->K2_GetActorRotation());
 			}
 		} */
+		else if (Command == "startaircraft")
+		{
+			auto GameMode = Cast<AFortGameModeAthena>(GetWorld()->AuthorityGameMode);
+			auto GameState = Cast<AFortGameStateAthena>(GameMode->GameState);
+
+			float skid = 11.f;
+
+			float Duration = skid;
+			float EarlyDuration = skid;
+
+			auto TimeSeconds = UGameplayStatics::GetTimeSeconds(GetWorld());
+
+			GameState->WarmupCountdownEndTime = TimeSeconds + Duration;
+			GameMode->WarmupCountdownDuration = Duration;
+
+			GameState->WarmupCountdownStartTime = TimeSeconds;
+			GameMode->WarmupEarlyCountdownDuration = EarlyDuration;
+		}
 #ifdef DEVELOPER_BUILD
 		else if (Command == "spawnbrute")
 		{
@@ -265,7 +283,7 @@ void ServerCheatHook(AFortPlayerControllerAthena* PlayerController, FString Msg)
 				return;
 			}
 
-			auto CurrentVolume = PlayerController->GetCurrentVolume();
+			auto CurrentVolume = ReceivingController->GetCurrentVolume();
 
 			if (!CurrentVolume)
 			{
@@ -273,8 +291,33 @@ void ServerCheatHook(AFortPlayerControllerAthena* PlayerController, FString Msg)
 				return;
 			}
 
-			ShowPlayset(PlaysetItemDef, CurrentVolume, PlayerController);
+			ShowPlayset(PlaysetItemDef, CurrentVolume, ReceivingController, true, Pawn->K2_GetActorLocation() + FVector(200, 0, 0));
 			SendMessageToConsole(PlayerController, L"Spawned playset!");
+		}
+		else if (Command == "setvolumeready")
+		{
+			auto CurrentVolume = ReceivingController->GetCurrentVolume();
+
+			if (!CurrentVolume)
+			{
+				SendMessageToConsole(PlayerController, L"You are not in a volume!");
+				return;
+			}
+
+			CurrentVolume->VolumeState = EVolumeState::Ready;
+			CurrentVolume->OnRep_VolumeState();
+		}
+		else if (Command == "getvolumestate")
+		{
+			auto CurrentVolume = ReceivingController->GetCurrentVolume();
+
+			if (!CurrentVolume)
+			{
+				SendMessageToConsole(PlayerController, L"You are not in a volume!");
+				return;
+			}
+
+			SendMessageToConsole(PlayerController, std::to_wstring((int)CurrentVolume->VolumeState).c_str());
 		}
 		else if (Command == "setflyspeed")
 		{
@@ -455,6 +498,8 @@ void ServerCheatHook(AFortPlayerControllerAthena* PlayerController, FString Msg)
 				{
 					GetWorld()->SpawnActor<AActor>(Pawn->K2_GetActorLocation(), FRotator(), ClassObj);
 				}
+
+				SendMessageToConsole(PlayerController, L"Summoned!");
 			}
 			else
 			{

@@ -362,7 +362,7 @@ static UFortWorldItem* GiveItem(AFortPlayerController* PlayerController, UFortIt
 	return ItemInstance;
 }
 
-static FFortLootTierData* GetLootTierData(std::vector<FFortLootTierData*>& LootTierData)
+static FFortLootTierData* GetLootTierData(std::vector<FFortLootTierData*>& LootTierData, bool bPrint = false)
 {
     float TotalWeight = 0;
 
@@ -373,8 +373,18 @@ static FFortLootTierData* GetLootTierData(std::vector<FFortLootTierData*>& LootT
 
     FFortLootTierData* SelectedItem = nullptr;
 
+    if (bPrint)
+    {
+        std::cout << std::format("TotalWeight: {}\n", TotalWeight);
+    }
+
     for (auto Item : LootTierData)
     {
+        if (bPrint)
+        {
+            std::cout << std::format("Rand: {} Weight: {}\n", RandomNumber, Item->Weight);
+        }
+
         if (RandomNumber <= Item->Weight)
         {
             SelectedItem = Item;
@@ -385,7 +395,7 @@ static FFortLootTierData* GetLootTierData(std::vector<FFortLootTierData*>& LootT
     }
 
     if (!SelectedItem)
-        return GetLootTierData(LootTierData);
+        return GetLootTierData(LootTierData, bPrint);
 
     return SelectedItem;
 }
@@ -420,6 +430,8 @@ static FFortLootPackageData* GetLootPackage(std::vector<FFortLootPackageData*>& 
 
 std::vector<FFortItemEntry> PickLootDrops(FName TierGroupName, bool bPrint = false, int recursive = 0)
 {
+    constexpr bool bExperimentalShuffling = false;
+
     std::vector<FFortItemEntry> LootDrops;
 
     if (recursive >= 5)
@@ -512,7 +524,20 @@ std::vector<FFortItemEntry> PickLootDrops(FName TierGroupName, bool bPrint = fal
         return LootDrops;
     }
 
-    FFortLootTierData* ChosenRowLootTierData = GetLootTierData(TierGroupLTDs);
+    if (bPrint)
+    {
+        std::cout << "TierGroupLTDs.size(): " << TierGroupLTDs.size() << '\n';
+    }
+
+    if constexpr (bExperimentalShuffling)
+    {
+        std::random_device rd;
+        std::mt19937 afafiuq(rd());
+
+        std::shuffle(TierGroupLTDs.begin(), TierGroupLTDs.end(), afafiuq);
+    }
+
+    FFortLootTierData* ChosenRowLootTierData = GetLootTierData(TierGroupLTDs, bPrint);
 
     if (!ChosenRowLootTierData) // Should NEVER happen
         return LootDrops;
@@ -682,6 +707,14 @@ std::vector<FFortItemEntry> PickLootDrops(FName TierGroupName, bool bPrint = fal
             // std::cout << "lootPackageCalls.size() == 0!\n";
             NumLootPackageDrops++; // ??
             continue;
+        }
+
+        if constexpr (bExperimentalShuffling)
+        {
+            std::random_device rd2;
+            std::mt19937 afafiuq2(rd2());
+
+            std::shuffle(lootPackageCalls.begin(), lootPackageCalls.end(), afafiuq2);
         }
 
         FFortLootPackageData* LootPackageCall = GetLootPackage(lootPackageCalls);

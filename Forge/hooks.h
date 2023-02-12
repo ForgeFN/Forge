@@ -12,6 +12,8 @@
 
 #include "moderation.h"
 
+void (*ProcessEvent)(UObject* Object, UFunction* Function, void* Parameters) = decltype(ProcessEvent)((uintptr_t)GetModuleHandleW(0) + 0x22f2990);
+
 static inline std::vector<std::pair<UFunction*, std::function<bool(UObject*, UFunction*, void*)>>> FunctionsToHook;
 
 void AddHook(UFunction* Function, std::function<bool(UObject*, UFunction*, void*)> callback)
@@ -200,6 +202,8 @@ void SpawnFloorLoot()
 
 	EFortPickupSourceTypeFlag SpawnFlag = EFortPickupSourceTypeFlag::Container;
 
+	bool bPrintWarmup = false;
+
 	for (int i = 0; i < SpawnIsland_FloorLoot_Actors.Num(); i++)
 	{
 		ABuildingContainer* CurrentActor = (ABuildingContainer*)SpawnIsland_FloorLoot_Actors[i];
@@ -210,7 +214,12 @@ void SpawnFloorLoot()
 		auto Location = CurrentActor->K2_GetActorLocation();
 		Location.Z += UpZ;
 
-		std::vector<FFortItemEntry> LootDrops = PickLootDrops(SpawnIslandTierGroup);
+		std::vector<FFortItemEntry> LootDrops = PickLootDrops(SpawnIslandTierGroup, bPrintWarmup);
+
+		if (bPrintWarmup)
+		{
+			std::cout << "\n\n";
+		}
 
 		if (LootDrops.size())
 		{
@@ -590,53 +599,6 @@ bool ReadyToStartMatchHook(AFortGameModeAthena* GameMode)
 		}
 
 		AllVehicleSpawners.Free();
-
-		TArray<AActor*> AllBGASpawners;
-		UGameplayStatics::GetAllActorsOfClass(GetWorld(), ABGAConsumableSpawner::StaticClass(), &AllBGASpawners);
-
-		std::cout << "AllBGASpawners.Num(): " << AllBGASpawners.Num() << '\n';
-
-		for (int i = 0; i < AllBGASpawners.Num(); i++)
-		{
-			auto BGASpawner = (ABGAConsumableSpawner*)AllBGASpawners[i];
-
-			// std::cout << "BGASpawner->SpawnLootTierGroup.ComparisonIndex: " << BGASpawner->SpawnLootTierGroup.ComparisonIndex << '\n';
-
-			if (BGASpawner->SpawnLootTierGroup.ComparisonIndex <= 0)
-				continue;
-
-			auto LootDrops = PickLootDrops(BGASpawner->SpawnLootTierGroup);
-
-			// std::cout << "BGA LootDrops.size(): " << LootDrops.size() << '\n';
-
-			if (LootDrops.size())
-			{
-				for (int j = 0; j < LootDrops.size(); j++)
-				{
-					auto BGAItemDef = Cast<UBGAConsumableWrapperItemDefinition>(LootDrops[j].ItemDefinition);
-
-					// std::cout << "BGAItemDef: " << BGAItemDef << '\n';
-
-					if (BGAItemDef)
-					{
-						// std::cout << "BGAItemDef Name: " << BGAItemDef->GetFullName() << '\n';
-
-						auto ConsumableClass = BGAItemDef->ConsumableClass.Get();
-
-						// std::cout << "ConsumableClass: " << ConsumableClass << '\n';
-
-						if (ConsumableClass)
-						{
-							// std::cout << "ConsumableClass Name: " << ConsumableClass->GetFullName() << '\n';
-
-							auto BGA = GetWorld()->SpawnActor<ABuildingGameplayActorConsumable>(BGASpawner->K2_GetActorLocation(), BGASpawner->K2_GetActorRotation(), ConsumableClass);
-						}
-					}
-				}
-			}
-		}
-
-		AllBGASpawners.Free();
 
 		auto Globals = GetFortGlobals();
 
@@ -1024,17 +986,15 @@ void ServerAttemptAircraftJumpHook(AFortPlayerController* PlayerController, FRot
 
 __int64 (*UPlaysetLevelStreamComponent_LoadPlayset)(UPlaysetLevelStreamComponent* a1) = decltype(UPlaysetLevelStreamComponent_LoadPlayset)(__int64(GetModuleHandleW(0)) + 0x1A3A0A0);
 
-void ShowPlayset(UFortPlaysetItemDefinition* PlaysetItemDef, AFortVolume* Volume, AFortPlayerController* PlayerController)
+void ShowPlayset(UFortPlaysetItemDefinition* PlaysetItemDef, AFortVolume* Volume, AFortPlayerController* PlayerController, bool bSpawnActors = false, FVector SpawnLocation = FVector())
 {
-	auto LevelStreamComponent = (UPlaysetLevelStreamComponent*)Volume->GetComponentByClass(UPlaysetLevelStreamComponent::StaticClass());
-
-	if (!LevelStreamComponent)
-		return;
+	SpawnLocation = SpawnLocation == FVector() ? Volume->K2_GetActorLocation() : SpawnLocation;
 
 	auto GameState = Cast<AFortGameStateAthena>(GetWorld()->AuthorityGameMode->GameState);
 
 	static auto VolumeClass = UObject::FindObject<UBlueprintGeneratedClass>("/Game/Athena/BuildingActors/FortVolumeActor_PrefabGrenades.FortVolumeActor_PrefabGrenades_C");
-	auto NewVolume = Volume; // GameState->VolumeManager->SpawnVolume(VolumeClass, PlaysetItemDef, Volume->K2_GetActorLocation(), PlaysetItemDef->DefaultRotation);
+	auto NewVolume = bSpawnActors ? GameState->VolumeManager->SpawnVolume(VolumeClass, PlaysetItemDef, SpawnLocation, PlaysetItemDef->DefaultRotation)
+		: Volume;
 
 	if (!NewVolume)
 	{
@@ -1042,7 +1002,20 @@ void ShowPlayset(UFortPlaysetItemDefinition* PlaysetItemDef, AFortVolume* Volume
 		return;
 	}
 
-	auto Location = Volume->K2_GetActorLocation();
+	if (bSpawnActors)
+	{
+
+	}
+
+	auto LevelStreamComponent = (UPlaysetLevelStreamComponent*)NewVolume->GetComponentByClass(UPlaysetLevelStreamComponent::StaticClass());
+
+	if (!LevelStreamComponent)
+	{
+		std::cout << "No LevelStreamComponent!\n";
+		// return;
+	}
+
+	auto Location = NewVolume->K2_GetActorLocation();
 
 	// NewVolume->UpdateSize(FVector{ 1000, 1000, 1000 });
 	NewVolume->OverridePlayset = PlaysetItemDef;
@@ -1050,17 +1023,62 @@ void ShowPlayset(UFortPlaysetItemDefinition* PlaysetItemDef, AFortVolume* Volume
 	NewVolume->SetCurrentPlayset(PlaysetItemDef);
 	NewVolume->OnRep_CurrentPlayset();
 
-	LevelStreamComponent->SetPlayset(PlaysetItemDef);
-	std::cout << "asfafqiq: " << LevelStreamComponent->ClientPlaysetData.Location.X << '\n';
-	std::cout << "afq31t13f1: " << LevelStreamComponent->ClientPlaysetData.PackageName.ComparisonIndex << '\n';
-	LevelStreamComponent->ClientPlaysetData.bValid = true;
-	LevelStreamComponent->ClientPlaysetData.Location = Location;
-	LevelStreamComponent->ClientPlaysetData.Rotation = PlaysetItemDef->DefaultRotation;
+	if (LevelStreamComponent)
+	{
+		LevelStreamComponent->SetPlayset(PlaysetItemDef);
 
-	LevelStreamComponent->OnRep_ClientPlaysetData();
-	UPlaysetLevelStreamComponent_LoadPlayset(LevelStreamComponent);
+		/*
+		LevelStreamComponent->ClientPlaysetData.bValid = true;
+		LevelStreamComponent->ClientPlaysetData.Location = Location;
+		LevelStreamComponent->ClientPlaysetData.Rotation = PlaysetItemDef->DefaultRotation;
+		*/
 
-	return;
+		LevelStreamComponent->OnRep_ClientPlaysetData();
+		UPlaysetLevelStreamComponent_LoadPlayset(LevelStreamComponent);
+	}
+
+	/*
+	auto PoiManager = GameState->PoiManager;
+
+	std::cout << "PoiManager->AllPoiVolumes.Num(): " << PoiManager->AllPoiVolumes.Num() << '\n';
+
+	for (int i = 0; i < PoiManager->AllPoiVolumes.Num(); i++)
+	{
+		auto PoiVolume = PoiManager->AllPoiVolumes[i];
+
+		if (!PoiVolume)
+			continue;
+
+		std::cout << "PoiVolume Name: " << PoiVolume->GetFullName() << '\n';
+		std::cout << "LocationTags: " << PoiVolume->LocationTags.ToStringSimple(true) << '\n';
+	}
+	*/
+
+	if (!bSpawnActors)
+		return;
+
+	std::cout << "Num: " << PlaysetItemDef->ActorClassCount.Num() << '\n';
+
+	for (auto& ActorClass : PlaysetItemDef->ActorClassCount)
+	{
+		auto& ClassSoft = ActorClass.Key();
+
+		auto Class = ClassSoft.Get();
+
+		std::cout << "Class: " << Class << '\n';
+
+		if (!Class)
+			continue;
+
+		std::cout << "Class Name: " << Class->GetFullName() << '\n';
+
+		for (int i = 0; i < ActorClass.Value(); i++)
+		{
+			auto Location = SpawnLocation;
+
+			auto Actor = GetWorld()->SpawnActor<AActor>(Location, FRotator(), Class);
+		}
+	}
 }
 
 void GiveItemToInventoryOwnerHook(UObject* Object, FFrame& Stack)
@@ -1294,6 +1312,57 @@ void HandleStartingNewPlayerHook(AFortGameModeAthena* GameMode, AFortPlayerContr
 		SpawnFloorLoot();
 		FillVendingMachines();
 
+
+		TArray<AActor*> AllBGASpawners;
+		UGameplayStatics::GetAllActorsOfClass(GetWorld(), ABGAConsumableSpawner::StaticClass(), &AllBGASpawners);
+
+		std::cout << "AllBGASpawners.Num(): " << AllBGASpawners.Num() << '\n';
+
+		for (int i = 0; i < AllBGASpawners.Num(); i++)
+		{
+			auto BGASpawner = (ABGAConsumableSpawner*)AllBGASpawners[i];
+
+			// std::cout << "BGASpawner->SpawnLootTierGroup.ComparisonIndex: " << BGASpawner->SpawnLootTierGroup.ComparisonIndex << '\n';
+
+			if (BGASpawner->SpawnLootTierGroup.ComparisonIndex <= 0)
+				continue;
+
+			auto LootDrops = PickLootDrops(BGASpawner->SpawnLootTierGroup);
+
+			// std::cout << "BGA LootDrops.size(): " << LootDrops.size() << '\n';
+
+			if (LootDrops.size())
+			{
+				for (int j = 0; j < LootDrops.size(); j++)
+				{
+					auto BGAItemDef = Cast<UBGAConsumableWrapperItemDefinition>(LootDrops[j].ItemDefinition);
+
+					// std::cout << "BGAItemDef: " << BGAItemDef << '\n';
+
+					if (BGAItemDef)
+					{
+						// std::cout << "BGAItemDef Name: " << BGAItemDef->GetFullName() << '\n';
+
+						auto ConsumableClass = BGAItemDef->ConsumableClass.Get();
+
+						// std::cout << "ConsumableClass: " << ConsumableClass << '\n';
+
+						if (ConsumableClass)
+						{
+							// std::cout << "ConsumableClass Name: " << ConsumableClass->GetFullName() << '\n';
+
+							auto loc = BGASpawner->K2_GetActorLocation();
+							loc += FVector{ 0, 0, 200 };
+							auto BGA = GetWorld()->SpawnActor<ABuildingGameplayActorConsumable>(loc, BGASpawner->K2_GetActorRotation(), ConsumableClass);
+						}
+					}
+				}
+			}
+		}
+
+		AllBGASpawners.Free();
+
+
 		if (auto GameSessionDedicatedAthena = Cast<AFortGameSessionDedicatedAthena>(GetWorld()->AuthorityGameMode->GameSession))
 		{
 			FGameplayTagContainer Skjidda = FGameplayTagContainer(); // GameState->CurrentPlaylistInfo.BasePlaylist->GameplayTagContainer
@@ -1321,17 +1390,35 @@ void HandleStartingNewPlayerHook(AFortGameModeAthena* GameMode, AFortPlayerContr
 	PlayerState->OnRep_bHasStartedPlaying();
 
 	auto PickaxeDefinition = GetRandomObjectOfClass<UAthenaPickaxeItemDefinition>(true, true); // UObject::FindObject<UAthenaPickaxeItemDefinition>("/Game/Athena/Items/Cosmetics/Pickaxes/DefaultPickaxe.DefaultPickaxe");
+	GiveItem(NewPlayer, PickaxeDefinition->WeaponDefinition, 1);
+	
+	/*
 	static auto WallPiece = UObject::FindObject<UFortItemDefinition>("/Game/Items/Weapons/BuildingTools/BuildingItemData_Wall.BuildingItemData_Wall");
 	static auto FloorPiece = UObject::FindObject<UFortItemDefinition>("/Game/Items/Weapons/BuildingTools/BuildingItemData_Floor.BuildingItemData_Floor");
 	static auto StairPiece = UObject::FindObject<UFortItemDefinition>("/Game/Items/Weapons/BuildingTools/BuildingItemData_Stair_W.BuildingItemData_Stair_W");
 	static auto RoofPiece = UObject::FindObject<UFortItemDefinition>("/Game/Items/Weapons/BuildingTools/BuildingItemData_RoofS.BuildingItemData_RoofS");
 
-	GiveItem(NewPlayer, PickaxeDefinition->WeaponDefinition, 1);
 	GiveItem(NewPlayer, WallPiece, 1);
 	GiveItem(NewPlayer, FloorPiece, 1);
 	GiveItem(NewPlayer, StairPiece, 1);
 	GiveItem(NewPlayer, RoofPiece, 1);
+	*/
+
+	for (int i = 0; i < GameMode->StartingItems.Num(); i++)
+	{
+		auto& StartingItem = GameMode->StartingItems[i];
+		auto ItemDef = StartingItem.Item;
+
+		if (!ItemDef)
+			continue;
+
+		std::cout << std::format("[{}] {}\n", i, ItemDef->GetFullName());
+
+		GiveItem(NewPlayer, StartingItem.Item, StartingItem.Count);
+	}
+
 	Update(NewPlayer);
+
 
 	/* GiveItem(NewPlayer, UObject::FindObject<UFortItemDefinition>("/Game/Athena/Items/Weapons/WID_Shotgun_Standard_Athena_SR_Ore_T03.WID_Shotgun_Standard_Athena_SR_Ore_T03"), 1);
 	GiveItem(NewPlayer, UObject::FindObject<UFortItemDefinition>("/Game/Athena/Items/Weapons/WID_Assault_AutoHigh_Athena_SR_Ore_T03.WID_Assault_AutoHigh_Athena_SR_Ore_T03"), 1);
@@ -1509,7 +1596,7 @@ void HandleStartingNewPlayerHook(AFortGameModeAthena* GameMode, AFortPlayerContr
 
 	std::cout << "SKIDD: " << NewPlayer->GetRegisteredPlayerInfo() << '\n';
 
-	if (Globals::bCreative)
+	if (Globals::bCreative && !PlayerState->bIsSpectator)
 	{
 		auto PortalManager = GameState->CreativePortalManager;
 		auto Portal = PortalManager->AvailablePortals[0];
@@ -1533,13 +1620,22 @@ void HandleStartingNewPlayerHook(AFortGameModeAthena* GameMode, AFortPlayerContr
 		Portal->IslandInfo.ImageUrl = L"https://th.bing.com/th/id/OIP.uUg45Kci2-a38s2ac3arVAHaEK?pid=ImgDet&rs=1";
 		Portal->OnRep_IslandInfo();
 
+		constexpr bool bIsPublished = false;
+
 		Portal->bUserInitiatedLoad = true;
 		Portal->bInErrorState = false;
+
+		Portal->bIsPublishedPortal = bIsPublished;
+		Portal->OnRep_PublishedPortal();
 
 		NewPlayer->OwnedPortal = Portal;
 		NewPlayer->CreativePlotLinkedVolume = Portal->LinkedVolume;
 		NewPlayer->OnRep_CreativePlotLinkedVolume();
 
+		std::cout << "volume state: " << (int)NewPlayer->CreativePlotLinkedVolume->VolumeState << '\n';
+		std::cout << "volume type: " << (int)NewPlayer->CreativePlotLinkedVolume->GetFortVolumeType() << '\n';
+
+		NewPlayer->CreativePlotLinkedVolume->bNeverAllowSaving = false;
 		NewPlayer->CreativePlotLinkedVolume->VolumeState = EVolumeState::Ready;
 		NewPlayer->CreativePlotLinkedVolume->OnRep_VolumeState();
 
@@ -1557,14 +1653,16 @@ void HandleStartingNewPlayerHook(AFortGameModeAthena* GameMode, AFortPlayerContr
 		// if (RealEstatePID)
 		// if (false)
 		{
-			static auto IslandPlayset = UObject::FindObject<UFortPlaysetItemDefinition>("/Game/Playsets/PID_Playset_60x60_Composed_BlackGlass.PID_Playset_60x60_Composed_BlackGlass"); 
+			static auto IslandPlayset = // UObject::FindObject<UFortPlaysetItemDefinition>("/Game/Playsets/PID_Playset_60x60_Composed_BlackGlass.PID_Playset_60x60_Composed_BlackGlass"); 
+				UObject::FindObject<UFortPlaysetItemDefinition>("/Game/Playsets/PID_Playset_60x60_Composed.PID_Playset_60x60_Composed");
 				// RealEstatePID->BasePlayset.Get();
 
 			if (NewPlayer->CreativePlotLinkedVolume)
 			{
 				NewPlayer->CreativePlotLinkedVolume->SetCurrentPlayset(IslandPlayset);
 				// NewPlayer->CreativePlotLinkedVolume->OverridePlayset = IslandPlayset;
-				NewPlayer->CreativePlotLinkedVolume->bShowPublishWatermark = true;
+
+				NewPlayer->CreativePlotLinkedVolume->bShowPublishWatermark = bIsPublished;
 
 				auto LevelSaveComponent = (UFortLevelSaveComponent*)NewPlayer->CreativePlotLinkedVolume->GetComponentByClass(UFortLevelSaveComponent::StaticClass());
 
@@ -1597,6 +1695,8 @@ void HandleStartingNewPlayerHook(AFortGameModeAthena* GameMode, AFortPlayerContr
 			ShowPlayset(IslandPlayset, NewPlayer->CreativePlotLinkedVolume, NewPlayer);
 		}
 
+		std::cout << "is owner: " << NewPlayer->OwnsIslandVolume(NewPlayer->CreativePlotLinkedVolume) << '\n';
+
 		// FCreativeIslandData IslandData;
 		// NewPlayer->CreativeIslands.Add(IslandData);
 	}
@@ -1620,7 +1720,8 @@ bool TeleportPlayerToLinkedVolumeHook(UObject* Object, UFunction*, void* Paramet
 
 	auto TeleportLocation = Portal->LinkedVolume->K2_GetActorLocation();
 
-	Pawn->K2_SetActorLocation(TeleportLocation, false, true, new FHitResult());
+	Pawn->K2_TeleportTo(TeleportLocation, Pawn->K2_GetActorRotation());
+	// Pawn->K2_SetActorLocation(TeleportLocation, false, true, new FHitResult());
 	Pawn->TeleportToSkyDive(0.0f);
 	// Portal->OnPlayerPawnTeleported(Pawn);
 
@@ -1874,6 +1975,8 @@ static void ServerExecuteInventoryItemHook(AFortPlayerControllerAthena* PlayerCo
 	if (!Pawn || !PlayerState)
 		return;
 
+	// PlayerController->CurrentPlayset = UObject::FindObject<UFortPlaysetItemDefinition>("/Game/Playsets/PID_CP_Devices_CreativeButton.PID_CP_Devices_CreativeButton");
+
 	// ApplyCID(PlayerState, PlayerController->CosmeticLoadoutPC.Character, Pawn);
 
 	auto ReplicatedEntry = FindReplicatedEntry(PlayerController, ItemGuid);
@@ -1917,6 +2020,7 @@ static void ServerExecuteInventoryItemHook(AFortPlayerControllerAthena* PlayerCo
 
 	if (auto Weapon = Pawn->EquipWeaponDefinition(WeaponDef, ItemGuid))
 	{
+		
 	}
 }
 
@@ -2966,6 +3070,7 @@ void ServerCreateBuildingActorHook(AFortPlayerControllerAthena* PlayerController
 
 			// if (ReplicatedMatEntry && ReplicatedMatEntry->ItemDefinition)
 			{
+				BuildingActor->bPlayerPlaced = true;
 				BuildingActor->TeamIndex = PlayerState->TeamIndex;
 				BuildingActor->InitializeKismetSpawnedBuildingActor(BuildingActor, PlayerController, true);
 
@@ -3212,9 +3317,10 @@ void ServerHandlePickupHook(AFortPlayerPawn* Pawn, AFortPickup* Pickup, float In
 
 static void ServerBeginEditingBuildingActorHook(AFortPlayerController* PlayerController, ABuildingSMActor* BuildingActorToEdit)
 {
-	auto Pawn = Cast<AFortPlayerPawnAthena>(PlayerController->Pawn);
+	auto Pawn = PlayerController->MyFortPawn;
+	auto PlayerState = Cast<AFortPlayerStateZone>(Pawn->PlayerState);
 
-	if (!Pawn)
+	if (!Pawn || !PlayerState)
 		return;
 
 	/* if (Pawn->CurrentWeapon)
@@ -3223,17 +3329,17 @@ static void ServerBeginEditingBuildingActorHook(AFortPlayerController* PlayerCon
 			return;
 	} */
 
-	if (PlayerController && BuildingActorToEdit)
+	if (BuildingActorToEdit && BuildingActorToEdit->bPlayerPlaced)
 	{
 		static auto EditToolDef = UObject::FindObject<UFortWeaponItemDefinition>("/Game/Items/Weapons/BuildingTools/EditTool.EditTool");
 
 		if (auto EditTool = Cast<AFortWeap_EditingTool>(Pawn->EquipWeaponDefinition(EditToolDef, FGuid{})))
 		{
-			EditTool->EditActor = BuildingActorToEdit;
-			EditTool->OnRep_EditActor();
-
 			BuildingActorToEdit->EditingPlayer = Cast<AFortPlayerStateZone>(Pawn->PlayerState);
 			BuildingActorToEdit->OnRep_EditingPlayer();
+
+			EditTool->EditActor = BuildingActorToEdit;
+			EditTool->OnRep_EditActor();
 		}
 	}
 }
@@ -3265,19 +3371,27 @@ void ServerTeleportToPlaygroundLobbyIslandHook(AFortPlayerControllerAthena* Play
 		if (!RandomPlayerStart)
 			return;
 
+		auto aaaa = RandomPlayerStart->PlayerStartTags.Contains("Playground.LobbyIsland.Spawn");
+
+		std::cout << "aaaa: " << aaaa << '\n';
+		std::cout << "RandomPlayerStart->PlayerStartTags.ToStringSimple(true): " << RandomPlayerStart->PlayerStartTags.ToStringSimple(true) << '\n';
 		std::cout << "RandomPlayerStart->CreativeLinkComponent: " << RandomPlayerStart->CreativeLinkComponent << '\n';
 		std::cout << "RandomPlayerStart->bUseAsIslandStart: " << RandomPlayerStart->bUseAsIslandStart << '\n';
 
-		if (RandomPlayerStart->CreativeLinkComponent)
+		if (!aaaa)
+			return ServerTeleportToPlaygroundLobbyIslandHook(PlayerController);
+
+		/* if (RandomPlayerStart->CreativeLinkComponent)
 		{
 			std::cout << "RandomPlayerStart->CreativeLinkComponent->LinkedVolume: " << RandomPlayerStart->CreativeLinkComponent->LinkedVolume << '\n';
 			std::cout << "RandomPlayerStart->CreativeLinkComponent->bShouldFindVolumeAtStart: " << RandomPlayerStart->CreativeLinkComponent->bShouldFindVolumeAtStart << '\n';
 		
 			// if (!RandomPlayerStart->CreativeLinkComponent->LinkedVolume)
 				// return ServerTeleportToPlaygroundLobbyIslandHook(PlayerController);
-		}
+		} */
 
-		Pawn->K2_SetActorLocation(RandomPlayerStart->K2_GetActorLocation(), false, true, new FHitResult());
+		Pawn->K2_TeleportTo(RandomPlayerStart->K2_GetActorLocation(), Pawn->K2_GetActorRotation());
+		// Pawn->K2_SetActorLocation(RandomPlayerStart->K2_GetActorLocation(), false, true, new FHitResult());
 	}
 }
 
@@ -3317,7 +3431,7 @@ static void ServerAttemptInventoryDropHook(AFortPlayerControllerAthena* PlayerCo
 
 static void ServerEditBuildingActorHook(AFortPlayerControllerAthena* PlayerController, ABuildingSMActor* BuildingActorToEdit, UClass* NewBuildingClass, int RotationIterations, char bMirrored)
 {
-	if (!BuildingActorToEdit || !NewBuildingClass)
+	if (!BuildingActorToEdit || !NewBuildingClass || BuildingActorToEdit->bDestroyed || BuildingActorToEdit->EditingPlayer != PlayerController->PlayerState)
 		return;
 
 	auto PlayerState = Cast<AFortPlayerStateAthena>(PlayerController->PlayerState);
@@ -3341,10 +3455,12 @@ static void ServerEditBuildingActorHook(AFortPlayerControllerAthena* PlayerContr
 	if (!bFound)
 		return; */
 
+	BuildingActorToEdit->EditingPlayer = nullptr;
+
 	static ABuildingSMActor* (*BuildingSMActorReplaceBuildingActor)(ABuildingSMActor*, __int64, UClass*, int, int, uint8_t, AFortPlayerController*) =
 		decltype(BuildingSMActorReplaceBuildingActor)((uintptr_t)GetModuleHandleW(0) + 0x13D0DE0);
 
-	if (auto BuildingActor = BuildingSMActorReplaceBuildingActor(BuildingActorToEdit, 1, NewBuildingClass, 0, RotationIterations, bMirrored, PlayerController))
+	if (auto BuildingActor = BuildingSMActorReplaceBuildingActor(BuildingActorToEdit, 1, NewBuildingClass, BuildingActorToEdit->CurrentBuildingLevel, RotationIterations, bMirrored, PlayerController))
 	{
 		BuildingActor->bPlayerPlaced = true;
 
@@ -3357,19 +3473,23 @@ static void ServerEditBuildingActorHook(AFortPlayerControllerAthena* PlayerContr
 
 static void ServerEndEditingBuildingActorHook(AFortPlayerControllerAthena* PlayerController, ABuildingSMActor* BuildingActorToStopEditing)
 {
-	if (!PlayerController->IsInAircraft() && BuildingActorToStopEditing && PlayerController->MyFortPawn)
+	// if (!PlayerController->IsInAircraft() && BuildingActorToStopEditing && PlayerController->MyFortPawn)
+
+	if (!BuildingActorToStopEditing || !PlayerController->MyFortPawn 
+		// || BuildingActorToStopEditing->EditingPlayer != PlayerController->PlayerState
+		|| BuildingActorToStopEditing->bDestroyed)
+		return;
+
+	auto EditTool = Cast<AFortWeap_EditingTool>(PlayerController->MyFortPawn->CurrentWeapon);
+
+	BuildingActorToStopEditing->EditingPlayer = nullptr;
+	BuildingActorToStopEditing->OnRep_EditingPlayer();
+
+	if (EditTool)
 	{
-		auto EditTool = Cast<AFortWeap_EditingTool>(PlayerController->MyFortPawn->CurrentWeapon);
-
-		BuildingActorToStopEditing->EditingPlayer = nullptr;
-		BuildingActorToStopEditing->OnRep_EditingPlayer();
-
-		if (EditTool)
-		{
-			EditTool->bEditConfirmed = true;
-			EditTool->EditActor = nullptr;
-			EditTool->OnRep_EditActor();
-		}
+		// EditTool->bEditConfirmed = true;
+		EditTool->EditActor = nullptr;
+		EditTool->OnRep_EditActor();
 	}
 }
 
@@ -3501,8 +3621,6 @@ void GetPlayerViewPointHook(AFortPlayerController* PlayerController, FVector& Lo
 		}
 	}
 }
-
-void (*ProcessEvent)(UObject* Object, UFunction* Function, void* Parameters) = decltype(ProcessEvent)((uintptr_t)GetModuleHandleW(0) + 0x22f2990);
 
 void ProcessEventHook(UObject* Object, UFunction* Function, void* Parameters)
 {

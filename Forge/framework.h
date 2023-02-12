@@ -9,7 +9,7 @@
 
 #include "discord.h"
 
-#define DEVELOPER_BUILD
+// #define DEVELOPER_BUILD
 
 enum ENetMode
 {
@@ -86,8 +86,10 @@ static void KillPlayer(AFortPlayerController* PlayerController)
 
 	if (Pawn)
 	{
-		Pawn->ForceKill(FGameplayTag(), PlayerController, Pawn);
+		Pawn->ForceKill(FGameplayTag(), nullptr, nullptr);
 	}
+
+	// set deathreport
 }
 
 static void (*CollectGarbage)() = decltype(CollectGarbage)((uintptr_t)GetModuleHandleW(0) + 0x227D720);
