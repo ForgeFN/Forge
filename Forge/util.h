@@ -59,7 +59,6 @@ enum IAmADumbass
 	tRUE
 };
 
-
 static bool BasicLocationCheck(AActor* Actor, AActor* OtherActor, float FarthestPossible)
 {
 	if (Actor->GetDistanceTo(OtherActor) > FarthestPossible)

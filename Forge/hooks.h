@@ -1072,7 +1072,7 @@ void ShowPlayset(UFortPlaysetItemDefinition* PlaysetItemDef, AFortVolume* Volume
 
 		std::cout << "Class Name: " << Class->GetFullName() << '\n';
 
-		for (int i = 0; i < ActorClass.Value(); i++)
+		// for (int i = 0; i < ActorClass.Value(); i++)
 		{
 			auto Location = SpawnLocation;
 
@@ -1417,8 +1417,55 @@ void HandleStartingNewPlayerHook(AFortGameModeAthena* GameMode, AFortPlayerContr
 		GiveItem(NewPlayer, StartingItem.Item, StartingItem.Count);
 	}
 
-	Update(NewPlayer);
+	auto CurrentPlaylist = GetCurrentPlaylist();
 
+	if (CurrentPlaylist)
+	{
+		for (int i = 0; i < CurrentPlaylist->InventoryItemsToGrant.Num(); i++)
+		{
+			auto& StartingItem = CurrentPlaylist->InventoryItemsToGrant[i];
+			auto ItemDef = StartingItem.Item;
+
+			if (!ItemDef)
+				continue;
+
+			std::cout << std::format("[{}] {}\n", i, ItemDef->GetFullName());
+
+			GiveItem(NewPlayer, StartingItem.Item, StartingItem.Count);
+		}
+	}
+
+	/*
+	auto MutatorListComponent = GameState->MutatorListComponent;
+	std::cout << "MutatorListComponent: " << MutatorListComponent << '\n';
+	auto Mutator = (AFortAthenaMutator_InventoryOverride*)MutatorListComponent->GetMutatorByClass(AFortAthenaMutator_InventoryOverride::StaticClass());
+	std::cout << "Mutator: " << Mutator << '\n';
+
+	if (Mutator)
+	{
+		std::cout << "size: " << Mutator->InventoryLoadouts.Num() << '\n';
+
+		for (int i = 0; i < Mutator->InventoryLoadouts.Num(); i++)
+		{
+			auto& InventoryLoadout = Mutator->InventoryLoadouts[i];
+
+			for (int z = 0; i < InventoryLoadout.Loadout.Num(); z++)
+			{
+				auto& StartingItem = InventoryLoadout.Loadout[z];
+				auto ItemDef = StartingItem.Item;
+
+				if (!ItemDef)
+					continue;
+
+				std::cout << std::format("[{}] {}\n", z, ItemDef->GetFullName());
+
+				GiveItem(NewPlayer, StartingItem.Item, StartingItem.Count);
+			}
+		}
+	}
+	*/
+
+	Update(NewPlayer);
 
 	/* GiveItem(NewPlayer, UObject::FindObject<UFortItemDefinition>("/Game/Athena/Items/Weapons/WID_Shotgun_Standard_Athena_SR_Ore_T03.WID_Shotgun_Standard_Athena_SR_Ore_T03"), 1);
 	GiveItem(NewPlayer, UObject::FindObject<UFortItemDefinition>("/Game/Athena/Items/Weapons/WID_Assault_AutoHigh_Athena_SR_Ore_T03.WID_Assault_AutoHigh_Athena_SR_Ore_T03"), 1);
@@ -1468,8 +1515,6 @@ void HandleStartingNewPlayerHook(AFortGameModeAthena* GameMode, AFortPlayerContr
 
 	static auto GameplayAbilitySet = UObject::FindObject<UFortAbilitySet>("/Game/Abilities/Player/Generic/Traits/DefaultPlayer/GAS_AthenaPlayer.GAS_AthenaPlayer");
 	GiveFortAbilitySet(PlayerState, GameplayAbilitySet);
-
-	auto CurrentPlaylist = GetCurrentPlaylist();
 
 	if (CurrentPlaylist)
 	{
@@ -1673,6 +1718,7 @@ void HandleStartingNewPlayerHook(AFortGameModeAthena* GameMode, AFortPlayerContr
 					LevelSaveComponent->AccountIdOfOwner = PlayerState->UniqueId;
 					LevelSaveComponent->LoadedLinkData = Portal->IslandInfo;
 					LevelSaveComponent->bIsLoaded = true;
+					LevelSaveComponent->LoadedPlotInstanceId = L"1";
 					// LevelSaveComponent->RestrictedPlotDefinition = RealEstatePID;
 					// LevelSaveComponent->LoadedPlot = (UFortCreativeRealEstatePlotItem*)LevelSaveComponent->RestrictedPlotDefinition->CreateTemporaryItemInstanceBP(1, 1);
 					LevelSaveComponent->bAutoLoadFromRestrictedPlotDefinition = true;
@@ -1687,8 +1733,9 @@ void HandleStartingNewPlayerHook(AFortGameModeAthena* GameMode, AFortPlayerContr
 						LevelSaveComponent->LoadedPlot->IslandTitle = L"BIG SKIDDERS";
 					}
 
-					// LevelSaveComponent->OnRep_Loaded(); // cloud stuff makes it crash ig idik
+					LevelSaveComponent->OnRep_LoadedPlotInstanceId();
 					LevelSaveComponent->OnRep_LoadedLinkData();
+					// LevelSaveComponent->OnRep_Loaded(); // cloud stuff makes it crash ig idik
 				}
 			}
 
@@ -1732,7 +1779,7 @@ void (*ServerChoosePartOriginal)(AFortPlayerPawn* Pawn, TEnumAsByte<EFortCustomP
 
 void ServerChoosePartHook(AFortPlayerPawn* Pawn, TEnumAsByte<EFortCustomPartType> Part, UCustomCharacterPart* ChosenCharacterPart)
 {
-	if (!ChosenCharacterPart && Part != EFortCustomPartType::Backpack)
+	if (!ChosenCharacterPart) // && Part != EFortCustomPartType::Backpack)
 	{
 		std::cout << "null!\n";
 		return;
@@ -2483,8 +2530,14 @@ void ServerAttemptInteractHook(UFortControllerComponent_Interaction* Interaction
 						std::cout << "VehicleWeaponDef: " << VehicleWeaponDef->GetFullName() << '\n';
 						int Ammo = 10000; // INT32_MAX - 1;
 						
+						auto VehicleInstance = GiveItem(Controller, VehicleWeaponDef, 1, GetClipSize(VehicleWeaponDef));
+						auto VehicleWeapon = Pawn->EquipWeaponDefinition(VehicleWeaponDef, VehicleInstance->ItemEntry.ItemGuid);
+
+						Update(Controller);
+
 						return;
 
+						/*
 						auto VehicleWeaponInstance = CreateAndGiveItem(Controller, VehicleWeaponDef, 1, Ammo); // GiveItem(Controller, VehicleWeaponDef, 1, Ammo); // Pawn->EquipWeaponDefinition(VehicleWeaponDef, FGuid());
 						Update(Controller);
 						VehicleWeaponInstance->ItemEntry.LoadedAmmo = Ammo;
@@ -2494,6 +2547,7 @@ void ServerAttemptInteractHook(UFortControllerComponent_Interaction* Interaction
 						auto Weapon = Pawn->EquipWeaponDefinition(VehicleWeaponDef, VehicleWeaponInstance->ItemEntry.ItemGuid);
 						Weapon->AmmoCount = Ammo;
 						Weapon->OnRep_AmmoCount(0);
+						*/
 					}
 				}
 			}
@@ -2823,22 +2877,38 @@ void ClientOnPawnDiedHook(AFortPlayerControllerAthena* DeadPlayerController, FFo
 
 		if (!GameState->IsRespawningAllowed(DeadPlayerState))
 		{
-			auto DroppableItems = GetDroppableItems(DeadPlayerController, nullptr, true);
+			bool bDropItems = true;
 
-			std::cout << "DroppableItems.size(): " << DroppableItems.size() << '\n';
+			/*
+			auto MutatorListComponent = GameState->MutatorListComponent;
+			auto Mutator = (AFortAthenaMutator_InventoryOverride*)MutatorListComponent->GetMutatorByClass(AFortAthenaMutator_InventoryOverride::StaticClass());
 
-			for (int i = 0; i < DroppableItems.size(); i++)
+			if (Mutator)
 			{
-				auto Item = DroppableItems[i];
-
-				if (!Item)
-					continue;
-
-				SpawnPickup(Item->ItemEntry, DeathInfo.DeathLocation, EFortPickupSourceTypeFlag::Player, EFortPickupSpawnSource::PlayerElimination);
-				RemoveItem(DeadPlayerController, Item->ItemEntry.ItemGuid, Item->ItemEntry.Count);
+				if (Mutator->DropAllItemsOverride == EAthenaLootDropOverride::ForceKeep)
+					bDropItems = false;
 			}
+			*/
 
-			Update(DeadPlayerController);
+			if (bDropItems)
+			{
+				auto DroppableItems = GetDroppableItems(DeadPlayerController, nullptr, true);
+
+				std::cout << "DroppableItems.size(): " << DroppableItems.size() << '\n';
+
+				for (int i = 0; i < DroppableItems.size(); i++)
+				{
+					auto Item = DroppableItems[i];
+
+					if (!Item)
+						continue;
+
+					SpawnPickup(Item->ItemEntry, DeathInfo.DeathLocation, EFortPickupSourceTypeFlag::Player, EFortPickupSpawnSource::PlayerElimination);
+					RemoveItem(DeadPlayerController, Item->ItemEntry.ItemGuid, Item->ItemEntry.Count);
+				}
+
+				Update(DeadPlayerController);
+			}
 
 			if (!DeadPawn->bIsDBNO)
 			{
@@ -2964,10 +3034,10 @@ char BuildingDamageHook(ABuildingActor* BuildingActor, float DamageIg, FGameplay
 					std::cout << "Out / BuildingSMActor->GetMaxHealth() / DamageThatWillAffect: " << Out / (BuildingSMActor->GetMaxHealth() / DamageThatWillAffect) << '\n';
 					*/
 
-					float test = 0;
-					TEnumAsByte<EEvaluateCurveTableResult> test2;
-					int x = (BuildingSMActor->GetMaxHealth() / DamageThatWillAffect) / 100;
-					UDataTableFunctionLibrary::EvaluateCurveTableRow(CurveTable, BuildingResourceAmountOverride.RowName, x, L"", &test2, &test);
+					// float test = 0;
+					// TEnumAsByte<EEvaluateCurveTableResult> test2;
+					// int x = (BuildingSMActor->GetMaxHealth() / DamageThatWillAffect) / 100;
+					// UDataTableFunctionLibrary::EvaluateCurveTableRow(CurveTable, BuildingResourceAmountOverride.RowName, x, L"", &test2, &test);
 					// std::cout << "test: " << test << '\n';
 
 					auto skid = Out / /* round */(BuildingSMActor->GetMaxHealth() / DamageThatWillAffect);
@@ -3816,7 +3886,7 @@ void OnCapsuleBeginOverlapHook(AFortPlayerPawn* Pawn, UPrimitiveComponent* Overl
 			auto ItemDefinition = Pickup->PrimaryPickupItemEntry.ItemDefinition;
 
 			if (Pickup->PawnWhoDroppedPickup != Pawn)
-				// (IsPrimaryQuickbar(ItemDefinition)
+				// (Isslotsfil(ItemDefinition)
 					// ? !IsInventoryFull(Cast<AFortPlayerControllerAthena>(Pawn->Controller), 1, ItemDefinition, Pickup->PrimaryPickupItemEntry.Count) : true))
 			{
 				auto  PlayerController = Cast<AFortPlayerControllerAthena>(Pawn->Controller, false);
@@ -4072,4 +4142,62 @@ float GetMaxTickRateHook(UGameEngine* Engine, float DeltaTime, bool bAllowFrameR
 	// auto TickRate = GetMaxTickRate(Engine, DeltaTime, bAllowFrameRateSmoothing);
 	// std::cout << "TickRate: " << TickRate << " bAllowFrameRateSmoothing: " << bAllowFrameRateSmoothing << '\n';
 	return 30;
+}
+
+void ServerFireActorInCannonHook(AFortWeaponRangedMountedCannon* Cannon, FVector LaunchDir)
+{
+	auto Pawn = Cast<AFortPlayerPawnAthena>(Cannon->Owner);
+
+	std::cout << "ServerFireActorInCannonHook Pawn: " << Pawn << '\n';
+
+	if (!Pawn)
+		return;
+
+	auto Vehicle = Cast<AFortAthenaVehicle>(Pawn->VehicleStateLocal.Vehicle);
+
+	std::cout << "ServerFireActorInCannonHook Pawn: " << Pawn << '\n';
+
+	if (!Vehicle)
+		return;
+
+	auto PushCannon = Cast<AFortAthenaSKPushCannon>(Vehicle);
+
+	std::cout << "ServerFireActorInCannonHook PushCannon: " << Pawn << '\n';
+
+	if (!PushCannon)
+	{
+		auto MountedCannon = Cast<AFortMountedCannon>(Vehicle);
+
+		std::cout << "ServerFireActorInCannonHook MountedCannon: " << MountedCannon << '\n';
+
+		if (MountedCannon)
+		{
+			auto PawnToShoot = Vehicle->GetPawnAtSeat(0);
+
+			std::cout << "ServerFireActorInCannonHook PawnToShoot1: " << Pawn << '\n';
+
+			if (!PawnToShoot)
+				return;
+
+			Pawn->ServerOnExitVehicle(ETryExitVehicleBehavior::ForceAlways);
+			MountedCannon->OnLaunchPawn(PawnToShoot);
+		}
+
+		return;
+	}
+
+	if (!Vehicle->GetPawnAtSeat(1))
+		return;
+
+	auto PawnToShoot = Vehicle->GetPawnAtSeat(1);
+
+	std::cout << "ServerFireActorInCannonHook PawnToShoot2: " << Pawn << '\n';
+
+	if (!PawnToShoot)
+		return;
+
+	PushCannon->OnPreLaunchPawn(PawnToShoot, LaunchDir);
+	Pawn->ServerOnExitVehicle(ETryExitVehicleBehavior::ForceAlways);
+	PushCannon->OnLaunchPawn(PawnToShoot, LaunchDir);
+	PushCannon->MultiCastPushCannonLaunchedPlayer();
 }

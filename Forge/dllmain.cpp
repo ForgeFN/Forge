@@ -237,6 +237,9 @@ DWORD WINAPI Main(LPVOID)
     static auto Teleporttohubvfn = UObject::FindObject<UFunction>("/Script/FortniteGame.FortPlayerControllerAthena.ServerTeleportToPlaygroundLobbyIsland");
     HookFunction(DefaultFortPCAthena, Teleporttohubvfn, ServerTeleportToPlaygroundLobbyIslandHook);
 
+    static auto ServerFireActorInCannonFn = UObject::FindObject<UFunction>("/Script/FortniteGame.FortWeaponRangedMountedCannon.ServerFireActorInCannon");
+    HookFunction(AFortWeaponRangedMountedCannon::StaticClass()->CreateDefaultObject(), ServerFireActorInCannonFn, ServerFireActorInCannonHook);
+
     int ServerServerLoadingScreenDroppedIndex = 0x12F0;
     static auto ServerLoadingScreenDroppedFn = UObject::FindObject<UFunction>("/Script/FortniteGame.FortPlayerController.ServerLoadingScreenDropped");
     HookFunction(DefaultFortPCAthena, ServerLoadingScreenDroppedFn, ServerLoadingScreenDroppedHook, (PVOID*)&ServerLoadingScreenDropped, false, ServerServerLoadingScreenDroppedIndex);

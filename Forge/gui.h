@@ -338,6 +338,7 @@ DWORD WINAPI GuiThread(LPVOID)
 
 								if (ImGui::Button(RequestURLCStr))
 								{
+									std::cout << "i: " << i << '\n';
 									PlayerTab = i;
 								}
 							}
