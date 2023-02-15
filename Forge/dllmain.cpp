@@ -305,7 +305,7 @@ DWORD WINAPI Main(LPVOID)
     CREATE_HOOK(IsResurrectionEnabledHook, IsResurrectionEnabled);
     CREATE_HOOK(GenericArray_GetHook, GenericArray_Get);
     CREATE_HOOK(BuildingDamageHook, BuildingDamageOriginal);
-    // CREATE_HOOK(retfalse, RebootCardTeamCheck);
+    CREATE_HOOK(retfalse, RebootCardTeamCheck);
     CREATE_HOOK(SetCustomizationLoadoutDataHook, SetCustomizationLoadoutDataOriginal);
     CREATE_HOOK(GetSquadIdForCurrentPlayerHook, GetSquadIdForCurrentPlayer);
     CREATE_HOOK(SpawnPawnOrSOmethingHook, SpawnPawnOrSOmething);
@@ -315,6 +315,7 @@ DWORD WINAPI Main(LPVOID)
     CREATE_HOOK(ClientOnPawnDiedHook, ClientOnPawnDied);
     CREATE_HOOK(OnCapsuleBeginOverlapHook, OnCapsuleBeginOverlapOriginal);
     CREATE_HOOK(AFortGameSessionDedicatedAthena_SetMatchStartTimeHook, AFortGameSessionDedicatedAthena_SetMatchStartTimeOriginal);
+    // CREATE_HOOK(BoiWatTheMarkerCRashHook, BoiWatTheMarkerCRashOriginal);
     // CREATE_HOOK(IsPlaysetWithinVolumeBoundsHook, IsPlaysetWithinVolumeBoundsOriginal);
 
     // HookCall((uint8_t*)(__int64(GetModuleHandleW(0)) + 0x1C59EC2), (uint8_t*)rettrue);

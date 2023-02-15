@@ -9484,7 +9484,8 @@ struct FBuildingGameplayActorAbilityDeliveryInfo
 struct FMarkedActorDisplayInfo
 {
 	struct FText                                       DisplayName;                                              // 0x0000(0x0018) (Edit, BlueprintVisible, BlueprintReadOnly, NativeAccessSpecifierPublic)
-	unsigned char                                      UnknownData00[0x28];                                      // 0x0018(0x0028) UNKNOWN PROPERTY: SoftObjectProperty FortniteGame.MarkedActorDisplayInfo.Icon
+	// unsigned char                                      UnknownData00[0x28];                                      // 0x0018(0x0028) UNKNOWN PROPERTY: SoftObjectProperty FortniteGame.MarkedActorDisplayInfo.Icon
+	struct TSoftObjectPtr<class UTexture2D>            Icon;
 	class UClass*                                      CustomIndicatorClass;                                     // 0x0040(0x0008) (Edit, BlueprintVisible, BlueprintReadOnly, ZeroConstructor, IsPlainOldData, NoDestructor, UObjectWrapper, HasGetValueTypeHash, NativeAccessSpecifierPublic)
 	struct FLinearColor                                PrimaryColor;                                             // 0x0048(0x0010) (Edit, BlueprintVisible, BlueprintReadOnly, ZeroConstructor, IsPlainOldData, NoDestructor, HasGetValueTypeHash, NativeAccessSpecifierPublic)
 	class USoundBase*                                  Sound;                                                    // 0x0058(0x0008) (Edit, BlueprintVisible, BlueprintReadOnly, ZeroConstructor, IsPlainOldData, NoDestructor, HasGetValueTypeHash, NativeAccessSpecifierPublic)
@@ -9987,7 +9988,8 @@ struct FFortWorldMarkerData
 	class UFortItemDefinition*                         ItemDefinition;                                           // 0x0038(0x0008) (BlueprintVisible, BlueprintReadOnly, ZeroConstructor, IsPlainOldData, NoDestructor, HasGetValueTypeHash, NativeAccessSpecifierPublic)
 	int                                                ItemCount;                                                // 0x0040(0x0004) (BlueprintVisible, BlueprintReadOnly, ZeroConstructor, IsPlainOldData, NoDestructor, HasGetValueTypeHash, NativeAccessSpecifierPublic)
 	unsigned char                                      UnknownData01[0x4];                                       // 0x0044(0x0004) MISSED OFFSET
-	unsigned char                                      UnknownData02[0x28];                                      // 0x0044(0x0028) UNKNOWN PROPERTY: SoftClassProperty FortniteGame.FortWorldMarkerData.MarkedActorClass
+	// unsigned char                                      UnknownData02[0x28];                                      // 0x0044(0x0028) UNKNOWN PROPERTY: SoftClassProperty FortniteGame.FortWorldMarkerData.MarkedActorClass
+	TSoftObjectPtr<class UClass>                  MarkedActorClass;
 	TSoftObjectPtr<class AActor>                       MarkedActor;               // 0x0070(0x0028) UNKNOWN PROPERTY: SoftObjectProperty FortniteGame.FortWorldMarkerData.MarkedActor
 	bool                                               bHasCustomDisplayInfo;                                    // 0x0098(0x0001) (ZeroConstructor, IsPlainOldData, NoDestructor, HasGetValueTypeHash, NativeAccessSpecifierPrivate)
 	unsigned char                                      UnknownData04[0x7];                                       // 0x0099(0x0007) MISSED OFFSET

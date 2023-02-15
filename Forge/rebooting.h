@@ -160,6 +160,21 @@ void HandleReboot(AActor* Instigator, ABuildingGameplayActorSpawnMachine* Reboot
 	RebootVan->SetSpawnMachineState(ESpawnMachineState::OnCooldown);
 	// RebootVan->SpawnMachineState = ESpawnMachineState::Complete;
 	RebootVan->OnRep_SpawnMachineState();
+
+	RebootVan->InstigatorPC.ObjectIndex = 0;
+	RebootVan->InstigatorPC.ObjectSerialNumber = 0;
+	// RebootVan->SpawnMachineSubTextState = ESpawnMachineSubTextState::NoCards;
+
+	auto PlayersInteracting = (TArray<AFortPlayerControllerAthena*>*)(__int64(RebootVan) + 0xA78);
+
+	for (int i = 0; i < PlayersInteracting->Num(); i++)
+	{
+		if (PlayersInteracting->operator[](i) == RequestingController)
+		{
+			PlayersInteracting->Remove(i);
+			break;
+		}
+	}
 }
 
 __int64 (*SpawnPawnOrSOmething)(ABuildingGameplayActorSpawnMachine* SpawnMachine, int a2) = decltype(SpawnPawnOrSOmething)(__int64(GetModuleHandleW(0)) + 0x139C580);

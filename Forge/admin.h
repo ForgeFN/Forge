@@ -831,14 +831,14 @@ void ServerCheatHook(AFortPlayerControllerAthena* PlayerController, FString Msg)
 			Pawn->SetShield(Shield);
 			SendMessageToConsole(PlayerController, L"Set shield!\n");
 		}
-		else if (Command == "startsafezone")
+		/* else if (Command == "startsafezone")
 		{
 			auto GameState = Cast<AFortGameStateAthena>(GetWorld()->GameState);
 
-			UKismetSystemLibrary::ExecuteConsoleCommand(GetWorld(), L"startsafezone", nullptr/* ReceivingController */);
+			UKismetSystemLibrary::ExecuteConsoleCommand(GetWorld(), L"startsafezone", nullptr);
 			// GameState->SafeZonesStartTime = 0; // for now
 			// GameState->bAircraftIsLocked = false;
-		}
+		} */
 		else if (Command == "demospeedserver")
 		{
 			if (NumArgs < 1)
@@ -893,7 +893,6 @@ cheat listplayers - Gives you all players names.
 cheat god - Toggles god.
 cheat suicide - Kills you.
 cheat dbno - Toggles down but not out.
-cheat startsafezone - Starts the safe zone.
 cheat spawnvolume - Spawns a creative volume at a player.
 cheat launch <X> <Y> <Z> - Launches a player.
 cheat teleport - Teleports to what the player is looking at.

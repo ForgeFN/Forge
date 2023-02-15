@@ -11,6 +11,7 @@
 #include "discord.h"
 
 #include "moderation.h"
+#include "util.h"
 
 void (*ProcessEvent)(UObject* Object, UFunction* Function, void* Parameters) = decltype(ProcessEvent)((uintptr_t)GetModuleHandleW(0) + 0x22f2990);
 
@@ -2519,6 +2520,8 @@ void ServerAttemptInteractHook(UFortControllerComponent_Interaction* Interaction
 		{
 			for (int i = 0; i < WeaponComponent->WeaponSeatDefinitions.Num(); i++)
 			{
+				break;
+
 				auto& CurrentDefinition = WeaponComponent->WeaponSeatDefinitions[i];
 
 				if (CurrentDefinition.SeatIndex == SeatIndex)
@@ -2966,8 +2969,29 @@ static bool ServerPlaySquadQuickChatMessageHook(UObject* Object, UFunction*, voi
 	if (!Controller || !Params)
 		return false;
 
+	auto PlayerState = Cast<AFortPlayerStateAthena>(Controller->PlayerState);
+
+	if (!PlayerState)
+		return false;
+
+	static auto EmojiComm = UObject::FindObject<UAthenaEmojiItemDefinition>("/Game/Athena/Items/Cosmetics/Dances/Emoji/Emoji_Comm.Emoji_Comm");
+
 	Controller->BroadcastRemoteClientInfo->RemoteChatEntry = Params->ChatEntry; // needed?
-	Controller->ServerPlayEmoteItem(UObject::FindObject<UAthenaEmojiItemDefinition>("/Game/Athena/Items/Cosmetics/Dances/Emoji/Emoji_Comm.Emoji_Comm"));
+	Controller->BroadcastRemoteClientInfo->OnRep_RemoteChatEntry();
+	Controller->ServerPlayEmoteItem(EmojiComm);
+
+	for (int i = 0; i < PlayerState->PlayerTeam->TeamMembers.Num(); i++)
+	{
+		if (PlayerState->PlayerTeam->TeamMembers[i] == Controller)
+			continue;
+
+		auto CurrentTeamMemberPC = Cast<AFortPlayerControllerAthena>(PlayerState->PlayerTeam->TeamMembers[i]);
+
+		if (!CurrentTeamMemberPC)
+			continue;
+
+		CurrentTeamMemberPC->ClientReceiveSquadQuickChatMessage(Params->ChatEntry, Controller);
+	}
 
 	return false;
 }
@@ -3175,7 +3199,7 @@ void ServerCreateBuildingActorHook(AFortPlayerControllerAthena* PlayerController
 
 void ServerAddMapMarkerHook(UAthenaMarkerComponent* MarkerComponent, FFortClientMarkerRequest MarkerRequest)
 {
-	return;
+	// return;
 
 	auto Owner = MarkerComponent->GetOwner();
 
@@ -3190,21 +3214,44 @@ void ServerAddMapMarkerHook(UAthenaMarkerComponent* MarkerComponent, FFortClient
 
 	AFortPlayerStateAthena* PlayerState = Cast<AFortPlayerStateAthena>(PlayerController->PlayerState);
 
-	auto MarkerStream = MarkerComponent->MarkerStream;
+	// auto MarkerStream = MarkerComponent->MarkerStream;
 
 	// MessageBoxA(0, std::to_string(MarkerStream.Num()).c_str(), "Forge", MB_OK);
+
+	// FFortWorldMarkerData* MarkerDataPtr = (FFortWorldMarkerData*)FMemory_Realloc(0, sizeof(FFortWorldMarkerData), 0);
+	auto MarkerData = FFortWorldMarkerData(); // *MarkerDataPtr;
+
+	FFortWorldMarkerData (*ConstructEmptyMarkerData)(FFortWorldMarkerData& a1) = decltype(ConstructEmptyMarkerData)(__int64(GetModuleHandleW(0)) + 0x1228D60);
+	MarkerData = ConstructEmptyMarkerData(MarkerData);
 
 	FMarkerID MarkerID{};
 	MarkerID.PlayerID = PlayerState->PlayerID;
 	MarkerID.InstanceID = MarkerRequest.InstanceID;
 
-	FFortWorldMarkerData MarkerData;
 	MarkerData.MarkerType = MarkerRequest.MarkerType;
 	MarkerData.Owner = PlayerState;
 	MarkerData.WorldPosition = MarkerRequest.WorldPosition;
 	MarkerData.WorldNormal = MarkerRequest.WorldNormal;
 	MarkerData.WorldPositionOffset = MarkerRequest.WorldPositionOffset;
 	MarkerData.MarkerID = MarkerID;
+	MarkerData.MarkedActorClass.WeakPtr.ObjectIndex = -1;
+	MarkerData.MarkedActorClass.WeakPtr.ObjectSerialNumber = -1;
+	MarkerData.MarkedActor.WeakPtr.ObjectIndex = -1;
+	MarkerData.MarkedActor.WeakPtr.ObjectSerialNumber = -1;
+	MarkerData.CustomDisplayInfo.Icon.WeakPtr.ObjectIndex = -1;
+	MarkerData.CustomDisplayInfo.Icon.WeakPtr.ObjectSerialNumber = -1;
+
+	if (MarkerRequest.MarkedActor)
+	{
+		MarkerData.MarkedActor.WeakPtr.ObjectIndex = MarkerRequest.MarkedActor->InternalIndex;
+		MarkerData.MarkedActor.WeakPtr.ObjectSerialNumber = 0;
+
+		MarkerData.MarkedActorClass.WeakPtr.ObjectIndex = MarkerRequest.MarkedActor->Class->InternalIndex;
+		MarkerData.MarkedActorClass.WeakPtr.ObjectSerialNumber = 0;
+
+		char (*WtfSkidda)(UAthenaMarkerComponent * a1, AActor * a2, FFortWorldMarkerData & MarkerData) = decltype(WtfSkidda)(__int64(GetModuleHandleW(0)) + 0x1297E00);
+		std::cout << "WtfSkidda: " << (int)WtfSkidda(PlayerController->MarkerComponent, MarkerRequest.MarkedActor, MarkerData) << '\n';
+	}
 
 	if (MarkerData.MarkerType == EFortWorldMarkerType::Item)
 	{
@@ -3215,7 +3262,7 @@ void ServerAddMapMarkerHook(UAthenaMarkerComponent* MarkerComponent, FFortClient
 		}
 	}
 
-	static void (*Idk)(UAthenaMarkerComponent* MarkerComponent, FFortWorldMarkerData MarkerData) = decltype(Idk)(__int64(GetModuleHandleW(0)) + 0x12A8990);
+	// static void (*Idk)(UAthenaMarkerComponent* MarkerComponent, FFortWorldMarkerData MarkerData) = decltype(Idk)(__int64(GetModuleHandleW(0)) + 0x12A8990);
 	
 	for (int i = 0; i < PlayerState->PlayerTeam->TeamMembers.Num(); i++)
 	{
@@ -3224,16 +3271,25 @@ void ServerAddMapMarkerHook(UAthenaMarkerComponent* MarkerComponent, FFortClient
 
 		auto CurrentTeamMemberPC = Cast<AFortPlayerControllerAthena>(PlayerState->PlayerTeam->TeamMembers[i]);
 
-		if (!CurrentTeamMemberPC || !CurrentTeamMemberPC->MarkerComponent)
+		if (!CurrentTeamMemberPC)
+			continue;
+
+		auto CurrentTeamMemberMarkerComponent = CurrentTeamMemberPC->MarkerComponent;// (UAthenaMarkerComponent*)CurrentTeamMemberPC->GetComponentByClass(UAthenaMarkerComponent::StaticClass());
+
+		std::cout << "CurrentTeamMemberMarkerComponent: " << CurrentTeamMemberMarkerComponent << '\n';
+
+		if (!CurrentTeamMemberMarkerComponent)
 			continue;
 
 		// Idk(CurrentTeamMemberPC->MarkerComponent, MarkerData);
 
-		// auto CurrentTeamMemberPS = Cast<AFortPlayerStateAthena>(CurrentTeamMemberPC->PlayerState);
+		// auto CurrentTeamMemberPS = Cast<AFortPlayerStaquteAthena>(CurrentTeamMemberPC->PlayerState);
 
 		// CurrentTeamMemberPC->BroadcastRemoteClientInfo->ClientRemotePlayerAddMapMarker(MarkerData);
 		// CurrentTeamMemberPC->BroadcastRemoteClientInfo->OnServerAddMapMarker(MarkerData); // cals ClientRemotePlayerAddMapMarker?
-		// CurrentTeamMemberPC->MarkerComponent->ClientAddMarker(MarkerData);
+		// CurrentTeamMemberMarkerComponent->ReplayMarkers.Add(MarkerData);
+		// CurrentTeamMemberMarkerComponent->OnRep_ReplayMarkers();
+		CurrentTeamMemberMarkerComponent->ClientAddMarker(MarkerData);
 	}
 }
 
