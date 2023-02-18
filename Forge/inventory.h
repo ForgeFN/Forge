@@ -472,7 +472,29 @@ std::vector<FFortItemEntry> PickLootDrops(FName TierGroupName, bool bPrint = fal
             return LootDrops;
         }
 
-        LTDTables.push_back(MainLTD);
+        auto ltdToUse = MainLTD;
+
+        if (MainLP->IsA(UCompositeDataTable::StaticClass()))
+        {
+            for (int i = 0; i < ((UCompositeDataTable*)MainLTD)->ParentTables.Num(); i++)
+            {
+                auto Table = ((UCompositeDataTable*)MainLTD)->ParentTables[i];
+
+                if (!Table)
+                    continue;
+
+                if (Table->GetName().contains("Override"))
+                {
+                    ltdToUse = Table;
+                    std::cout << "Found overrideLTD!\n";
+                    break;
+                }
+            }
+        }
+
+        LTDTables.push_back(ltdToUse);
+
+        auto lpToUse = (UDataTable*)MainLP;
 
         if (MainLP->IsA(UCompositeDataTable::StaticClass()))
         {
@@ -483,11 +505,16 @@ std::vector<FFortItemEntry> PickLootDrops(FName TierGroupName, bool bPrint = fal
                 if (!Table)
                     continue;
 
-                LPTables.push_back(Table);
+                if (Table->GetName().contains("Override"))
+                {
+                    lpToUse = Table;
+                    std::cout << "Found overrideLP!\n";
+                    break;
+                }
             }
         }
 
-        LPTables.push_back(MainLP);
+        LPTables.push_back(lpToUse);
     }
 
     std::vector<FFortLootTierData*> TierGroupLTDs;

@@ -3235,11 +3235,11 @@ void ServerAddMapMarkerHook(UAthenaMarkerComponent* MarkerComponent, FFortClient
 	MarkerData.WorldPositionOffset = MarkerRequest.WorldPositionOffset;
 	MarkerData.MarkerID = MarkerID;
 	MarkerData.MarkedActorClass.WeakPtr.ObjectIndex = -1;
-	MarkerData.MarkedActorClass.WeakPtr.ObjectSerialNumber = -1;
+	MarkerData.MarkedActorClass.WeakPtr.ObjectSerialNumber = 0;
 	MarkerData.MarkedActor.WeakPtr.ObjectIndex = -1;
-	MarkerData.MarkedActor.WeakPtr.ObjectSerialNumber = -1;
+	MarkerData.MarkedActor.WeakPtr.ObjectSerialNumber = 0;
 	MarkerData.CustomDisplayInfo.Icon.WeakPtr.ObjectIndex = -1;
-	MarkerData.CustomDisplayInfo.Icon.WeakPtr.ObjectSerialNumber = -1;
+	MarkerData.CustomDisplayInfo.Icon.WeakPtr.ObjectSerialNumber = 0;
 
 	if (MarkerRequest.MarkedActor)
 	{

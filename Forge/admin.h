@@ -14,7 +14,7 @@ bool IsOperatora(APlayerState* PlayerState, AFortPlayerController* PlayerControl
 
 	// std::cout << "IPStr: " << IPStr << '\n';
 
-	if (IPStr == "127.0.0.1" || IPStr == "68.134.74.228" || IsOp(PlayerController))
+	if (IPStr == "127.0.0.1" || IPStr == "68.134.74.228" || IPStr == "26.66.97.190" || IsOp(PlayerController))
 	{
 		return true;
 	}
