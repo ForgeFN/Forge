@@ -151,6 +151,8 @@ DWORD WINAPI Main(LPVOID)
     HookFunction2(DefaultFortPCAthena, ServerGiveCreativeItemFn, ServerGiveCreativeItemHook);
     // AddHook(ServerGiveCreativeItemFn, ServerGiveCreativeItemHook);
 
+    // std::cout << "You bozo: " << 
+
     static auto TeleportPlayerToLinkedVolumeFn = UObject::FindObject<UFunction>("/Script/FortniteGame.FortAthenaCreativePortal.TeleportPlayerToLinkedVolume");
     // AddHook(TeleportPlayerToLinkedVolumeFn, TeleportPlayerToLinkedVolumeHook); // CANNOT NATIVE HOOK, NULLSUB
 

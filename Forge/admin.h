@@ -158,13 +158,13 @@ void ServerCheatHook(AFortPlayerControllerAthena* PlayerController, FString Msg)
 
 					SpawnPickup(WID, Pawn->K2_GetActorLocation(), count, EFortPickupSourceTypeFlag::Player, EFortPickupSpawnSource::Unset, -1, Pawn);
 					Update(ReceivingController);
-					SendMessageToConsole(PlayerController, std::wstring(L" Successfully spawned pickup, " + count + std::wstring(L" ") + std::wstring(weaponName.begin(), weaponName.end())).c_str());
+					// SendMessageToConsole(PlayerController, std::wstring(L" Successfully spawned pickup, " + count + std::wstring(L" ") + std::wstring(weaponName.begin(), weaponName.end())).c_str());
 				}
 				else
 				{
 					GiveItem(ReceivingController, WID, count);
 					Update(ReceivingController);
-					SendMessageToConsole(PlayerController, std::wstring(L" Successfully gave " + count + std::wstring(L" ") + std::wstring(weaponName.begin(), weaponName.end())).c_str());
+					// SendMessageToConsole(PlayerController, std::wstring(L" Successfully gave " + count + std::wstring(L" ") + std::wstring(weaponName.begin(), weaponName.end())).c_str());
 				}
 			}
 			else

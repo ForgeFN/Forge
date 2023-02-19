@@ -243,14 +243,14 @@ DWORD WINAPI GuiThread(LPVOID)
 				{
 					Tab = MAIN_TAB;
 					ImGui::EndTabItem();
-					PlayerTab = -1;
+					// PlayerTab = -1;
 				}
 
 				if (/* NetDriver && */ ImGui::BeginTabItem(("Players")))
 				{
 					Tab = PLAYER_TAB;
 					ImGui::EndTabItem();
-					PlayerTab = -1;
+					// PlayerTab = -1;
 				}
 
 				ImGui::EndTabBar();
@@ -338,8 +338,10 @@ DWORD WINAPI GuiThread(LPVOID)
 
 								if (ImGui::Button(RequestURLCStr))
 								{
+									std::cout << "PlayerTab: " << PlayerTab << '\n';
 									std::cout << "i: " << i << '\n';
 									PlayerTab = i;
+									break;
 								}
 							}
 
@@ -354,7 +356,8 @@ DWORD WINAPI GuiThread(LPVOID)
 							*/
 						}
 					}
-					else
+					
+					if (PlayerTab != -1)
 					{
 						auto Controller = Controllers[PlayerTab];
 						auto PlayerState = Controller->PlayerState;
@@ -373,6 +376,7 @@ DWORD WINAPI GuiThread(LPVOID)
 						}
 						else
 						{
+							std::cout << "null ps!\n";
 							PlayerTab = -1;
 						}
 					}

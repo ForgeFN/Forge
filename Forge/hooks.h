@@ -2809,6 +2809,9 @@ void ClientOnPawnDiedHook(AFortPlayerControllerAthena* DeadPlayerController, FFo
 	auto GameMode = Cast<AFortGameModeAthena>(GetWorld()->AuthorityGameMode);
 	auto GameState = Cast<AFortGameStateAthena>(GetWorld()->GameState);
 
+	if (!DeadPawn)
+		return;
+
 	// if (GameState->GamePhase <= EAthenaGamePhase::Aircraft)
 		// return ClientOnPawnDied(PlayerController, DeathReport);
 
