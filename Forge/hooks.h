@@ -1280,7 +1280,7 @@ void HandleStartingNewPlayerHook(AFortGameModeAthena* GameMode, AFortPlayerContr
 
 	if (IsBanned(NewPlayer))
 	{
-		KickPlayer(NewPlayer, L"You can't join! Your banned!");
+		KickPlayer(NewPlayer, L"You can't join! You're banned!");
 		return;
 	}
 
