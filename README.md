@@ -20,7 +20,10 @@ what is new on here which isn't on any other public gs?:
 
 why did I release: bored
 
-creative islands credit: ender0001
+## Credits
+
+Zombie movement - Spooky
+Creative islands - Ender
 
 # How to use the cheat commands
 
