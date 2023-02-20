@@ -64,7 +64,7 @@ public:
     inline bool send_embed(const std::string& title, const std::string& description, int color = 0)
     {
         std::string json = "{\"embeds\": [{\"title\": \"" + title + "\", \"description\": \"" + description + "\", \"color\": " + "\"" + std::to_string(color) + "\"}]}";
-        std::cout << "json: " << json << '\n';
+        // std::cout << "json: " << json << '\n';
         curl_easy_setopt(curl, CURLOPT_POSTFIELDS, json.c_str());
 
         bool success = handleCode(curl_easy_perform(curl));

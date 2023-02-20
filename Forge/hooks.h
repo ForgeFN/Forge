@@ -2793,10 +2793,13 @@ void ClientOnPawnDiedHook(AFortPlayerControllerAthena* DeadPlayerController, FFo
 		DeathInfo.DeathLocation = DeadPawn ? DeadPawn->K2_GetActorLocation() : FVector();
 		// DeathInfo.Distance = Pawn->LastFallDistance;
 
-		DeathInfo.DeathTags = DeadPawn->DeathTags; // DeathReport.Tags;
+		DeathInfo.DeathTags = *(FGameplayTagContainer*)(__int64(DeadPawn) + 0x1428); // DeadPawn->DeathTags; // DeathReport.Tags;
+		// std::cout << "TAGS: " << DeathInfo.DeathTags.ToStringSimple(true) << '\n';
 		DeathInfo.bInitialized = true;
 		DeathInfo.DeathCause = AFortPlayerStateAthena::ToDeathCause(DeathReport.Tags, DeathInfo.bDBNO);
+		// std::cout << "DeathInfo.DeathCause: " << (int)DeathInfo.DeathCause << '\n';
 		DeathInfo.FinisherOrDowner = KillerPlayerState ? KillerPlayerState : DeadPlayerState;
+		DeathInfo.Distance = DeathInfo.DeathCause == EDeathCause::FallDamage ? DeadPawn->LastFallDistance : (KillerPawn ? KillerPawn->GetDistanceTo(DeadPawn) : 0);
 
 		DeadPlayerState->PawnDeathLocation = DeathInfo.DeathLocation;
 		DeadPlayerState->DeathInfo = DeathInfo;

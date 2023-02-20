@@ -436,7 +436,7 @@ std::vector<FFortItemEntry> PickLootDrops(FName TierGroupName, bool bPrint = fal
 
     if (recursive >= 5)
     {
-        std::cout << "Hit recursive limit for: " << TierGroupName.ToString() << '\n';
+        // std::cout << "Hit recursive limit for: " << TierGroupName.ToString() << '\n';
         return LootDrops;
     }
 
