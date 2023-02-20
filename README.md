@@ -16,7 +16,8 @@ Main features:
 - run over ammo & mats
 - pickup delay
 - repairing
-- s8+ map markers
+- team map markers
+- killfeed works
 
 ## Credits
 
