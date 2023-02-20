@@ -43,6 +43,20 @@ static __forceinline UWorld* GetWorld()
 	return GEngine->GameViewport->World;
 }
 
+static UInterface* (*GetInterfaceInObjectFromStaticClassOriginal)(UObject* Object, UClass* a2) =
+	decltype(GetInterfaceInObjectFromStaticClassOriginal)(__int64(GetModuleHandleW(0)) + 0x22EC6A0);
+
+template <typename InterfaceClass>
+static InterfaceClass* GetInterfaceInObjectFromStaticClass(UObject* Object)
+{
+	return (InterfaceClass*)GetInterfaceInObjectFromStaticClassOriginal(Object, InterfaceClass::StaticClass());
+}
+
+static UPackage* GetTransientPackage()
+{
+	return UObject::FindObject<UPackage>("/Engine/Transient");
+}
+
 inline void SendMessageToConsole(AFortPlayerController* PlayerController, FString Msg)
 {
 	float MsgLifetime = 1; // unused by ue
@@ -483,4 +497,105 @@ inline UFortGlobals* GetFortGlobals()
 {
 	auto FortGlobals = Cast<UFortGlobals>(GEngine->GameSingleton);
 	return FortGlobals;
+}
+
+static void GiveFortAbilitySet(UAbilitySystemComponent* ASC, UFortAbilitySet* FortAbilitySet)
+{
+	for (int i = 0; i < FortAbilitySet->GameplayAbilities.Num(); i++)
+	{
+		UClass* AbilityClass = FortAbilitySet->GameplayAbilities[i];
+		UGameplayAbility* AbilityDefaultObject = (UGameplayAbility*)AbilityClass->CreateDefaultObject();
+
+		FGameplayAbilitySpecHandle Handle{};
+		Handle.GenerateNewHandle();
+
+		FGameplayAbilitySpec Spec{ -1, -1, -1 };
+		Spec.Ability = AbilityDefaultObject;
+		Spec.Level = 0;
+		Spec.InputID = -1;
+		Spec.Handle = Handle;
+
+		GiveAbility(ASC, &Handle, Spec);
+	}
+}
+
+static void GiveFortAbilitySet(AFortPlayerState* PlayerState, UFortAbilitySet* FortAbilitySet)
+{
+	auto ASIA = GetInterfaceInObjectFromStaticClass<UAbilitySystemInterface>(PlayerState);
+
+	std::cout << "ASIA: " << ASIA << '\n';
+
+	if (!ASIA)
+	{
+		GiveFortAbilitySet(PlayerState->AbilitySystemComponent, FortAbilitySet);
+	}
+	else
+	{
+		TScriptInterface<UAbilitySystemInterface> ASIAScriptInterface{};
+		ASIAScriptInterface.ObjectPointer = PlayerState;
+		ASIAScriptInterface.InterfacePointer = ASIA;
+		UFortKismetLibrary::EquipFortAbilitySet(ASIAScriptInterface, FortAbilitySet, nullptr);
+	}
+}
+
+static void ApplyModifierItemDefinition(UFortGameplayModifierItemDefinition* Modifier, UAbilitySystemComponent* ASC)
+{
+	for (int j = 0; j < Modifier->PersistentAbilitySets.Num(); j++)
+	{
+		auto& AbilitySet = Modifier->PersistentAbilitySets[j];
+
+		if (AbilitySet.DeliveryRequirements.bConsiderTeam)
+			continue; // UNSUPPORTED
+
+		if (!AbilitySet.DeliveryRequirements.bApplyToPlayerPawns)
+			continue;
+
+		auto AbilitySets = AbilitySet.AbilitySets;
+
+		if (!AbilitySets.Data)
+			continue;
+
+		for (int k = 0; k < AbilitySets.Num(); k++)
+		{
+			auto& AbilitySetClassSoft = AbilitySets[k];
+			auto AbilitySetClass = AbilitySetClassSoft.Get();
+
+			if (!AbilitySetClass)
+				continue;
+
+			GiveFortAbilitySet(ASC, AbilitySetClass);
+		}
+	}
+
+	return;
+
+	for (int j = 0; j < Modifier->PersistentGameplayEffects.Num(); j++)
+	{
+		auto& GameplayEffect = Modifier->PersistentGameplayEffects[j];
+
+		if (GameplayEffect.DeliveryRequirements.bConsiderTeam)
+			continue; // UNSUPPORTED
+
+		if (!GameplayEffect.DeliveryRequirements.bApplyToPlayerPawns)
+			continue;
+
+		auto GameplayEffects = GameplayEffect.GameplayEffects;
+
+		if (!GameplayEffects.Data)
+			continue;
+
+		for (int k = 0; k < GameplayEffects.Num(); k++)
+		{
+			auto& GameplayEffectInfo = GameplayEffects[k];
+			auto GameplayEffectClassSoft = GameplayEffectInfo.GameplayEffect;
+			auto GameplayEffectClass = GameplayEffectClassSoft.ObjectID.AssetPathName.ComparisonIndex ? GameplayEffectClassSoft.Get() : nullptr;
+
+			if (!GameplayEffectClass)
+				continue;
+
+			FGameplayEffectContextHandle contextHandle{};
+
+			ASC->BP_ApplyGameplayEffectToSelf(GameplayEffectClass, GameplayEffectInfo.Level, contextHandle);
+		}
+	}
 }

@@ -245,7 +245,7 @@ private:
 
 class FScriptInterface
 {
-private:
+public:
 	UObject* ObjectPointer;
 	void* InterfacePointer;
 

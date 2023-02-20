@@ -288,6 +288,21 @@ DWORD WINAPI GuiThread(LPVOID)
 					RestartServer();
 				} */
 
+				if (ImGui::Button("Dump Objects"))
+				{
+					std::ofstream objectstream("ForgeObjectDump.txt");
+
+					for (int i = 0; i < UObject::GObjects->Num(); i++)
+					{
+						auto Object = UObject::GObjects->GetObjectById(i);
+
+						if (!Object)
+							continue;
+
+						objectstream << std::format("[{}] {}\n", Object->InternalIndex, Object->GetFullName());
+					}
+				}
+
 				break;
 			case PLAYER_TAB:
 			{

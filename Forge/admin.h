@@ -2,6 +2,7 @@
 
 #include "inventory.h"
 #include "hooks.h"
+#include "ai.h"
 
 #include <algorithm>
 #include <vector>
@@ -248,10 +249,17 @@ void ServerCheatHook(AFortPlayerControllerAthena* PlayerController, FString Msg)
 				return;
 			}
 
+			auto SpawnerLoc = Pawn->K2_GetActorLocation();
+			SpawnerLoc.Z += 1000;
+
+			static auto icespawnerclass = UObject::FindObject<UBlueprintGeneratedClass>("/Game/Athena/Deimos/Spawners/RiftSpawners/BP_DeimosRift_Ice_Dynamic.BP_DeimosRift_Ice_Dynamic_C");
+			auto rift = nullptr; // GetWorld()->SpawnActor<ABuildingRift>(SpawnerLoc, FRotator{}, icespawnerclass);
+
 			static auto BruteClass = UObject::FindObject<UBlueprintGeneratedClass>("/Game/Athena/AI/Pawns/AthenaAI_Brute.AthenaAI_Brute_C");
+			// static auto BruteClass = UObject::FindObject<UBlueprintGeneratedClass>("/Game/Athena/Deimos/Pawns/Deimos_Fiend.Deimos_Fiend_C");
 			std::cout << "BruteClass: " << BruteClass << '\n';
 
-			auto Brute = GetWorld()->SpawnActor<AFortAIPawn>(Pawn->K2_GetActorLocation(), FRotator{}, BruteClass);
+			auto Brute = SpawnAIPawn(BruteClass, Pawn->K2_GetActorLocation(), EFortressAIType::FAT_Encounter, rift, ReceivingController);
 
 			if (!Brute)
 			{
@@ -259,9 +267,50 @@ void ServerCheatHook(AFortPlayerControllerAthena* PlayerController, FString Msg)
 				return;
 			}
 
-			Brute->bFrozen = false;
-			Brute->SetMovementUrgency(EFortMovementUrgency::High);
-			Brute->SetAIFocalPoint(Pawn, FVector(), true);
+			// Brute->bFrozen = false;
+			// Brute->SetMovementUrgency(EFortMovementUrgency::High);
+			// Brute->SetAIFocalPoint(Pawn, FVector(), true);
+		}
+		else if (Command == "spawnai")
+		{
+			auto Pawn = Cast<AFortPlayerPawnAthena>(ReceivingController->Pawn);
+
+			if (!Pawn)
+			{
+				SendMessageToConsole(PlayerController, L"No pawn!");
+				return;
+			}
+
+			auto SpawnLoc = Pawn->K2_GetActorLocation();
+
+			auto GameMode = Cast<AFortGameModeAthena>(GetWorld()->AuthorityGameMode);
+			auto ServerBotManager = GameMode->ServerBotManager;
+
+			if (!ServerBotManager)
+			{
+				SendMessageToConsole(PlayerController, L"No ServerBotManager!");
+				return;
+			}
+
+			auto CustomizationData = (UFortAthenaAIBotCustomizationData*)UGameplayStatics::SpawnObject(UFortAthenaAIBotCustomizationData::StaticClass(), GetTransientPackage());
+
+			if (!CustomizationData)
+			{
+				SendMessageToConsole(PlayerController, L"Failed to spawn customization data!");
+				return;
+			}
+
+			CustomizationData->PawnClass = UObject::FindObject<UBlueprintGeneratedClass>("/Game/Athena/PlayerPawn_Athena.PlayerPawn_Athena_C");
+
+			auto BotPawn = ServerBotManager->SpawnBot(SpawnLoc, FRotator(), CustomizationData);
+
+			if (!BotPawn)
+			{
+				SendMessageToConsole(PlayerController, L"Failed to spawn bot pawn!");
+				return;
+			}
+
+			SendMessageToConsole(PlayerController, L"Spawned bot pawn!");
 		}
 #endif
 		else if (Command == "spawnplayset")
@@ -496,7 +545,9 @@ void ServerCheatHook(AFortPlayerControllerAthena* PlayerController, FString Msg)
 			{
 				for (int i = 0; i < Count; i++)
 				{
-					GetWorld()->SpawnActor<AActor>(Pawn->K2_GetActorLocation(), FRotator(), ClassObj);
+					auto Loc = Pawn->K2_GetActorLocation();
+					// Loc.Z += 1000;
+					GetWorld()->SpawnActor<AActor>(Loc, FRotator(), ClassObj);
 				}
 
 				SendMessageToConsole(PlayerController, L"Summoned!");

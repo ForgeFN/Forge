@@ -173,6 +173,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="admin.h" />
+    <ClInclude Include="ai.h" />
     <ClInclude Include="discord.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="gui.h" />

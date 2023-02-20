@@ -361,6 +361,36 @@ struct FVector
 	{
 		*this = *this - A;
 	}
+
+	inline float Customsqrtf_(float x)
+	{
+		union { float f; uint32_t i; } z = { x };
+		z.i = 0x5f3759df - (z.i >> 1);
+		z.f *= (1.5f - (x * 0.5f * z.f * z.f));
+		z.i = 0x7EEEEEEE - z.i;
+		return z.f;
+	}
+
+	double Custompowf_(double x, int y)
+	{
+		double temp;
+		if (y == 0)
+			return 1;
+		temp = Custompowf_(x, y / 2);
+		if ((y % 2) == 0) {
+			return temp * temp;
+		}
+		else {
+			if (y > 0)
+				return x * temp * temp;
+			else
+				return (temp * temp) / x;
+		}
+	}
+
+	inline float Distance(const FVector& v) {
+		return float(Customsqrtf_(Custompowf_(v.X - X, 2.0) + Custompowf_(v.Y - Y, 2.0) + Custompowf_(v.Z - Z, 2.0)));
+	}
 };
 
 // ScriptStruct CoreUObject.Vector4

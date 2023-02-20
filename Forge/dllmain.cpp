@@ -81,6 +81,18 @@ DWORD WINAPI Main(LPVOID)
     UKismetSystemLibrary::ExecuteConsoleCommand(GetWorld(), L"log LogFortTeams VeryVerbose", PlayerController);
     UKismetSystemLibrary::ExecuteConsoleCommand(GetWorld(), L"log LogPlayerPawnAthena VeryVerbose", PlayerController);
     UKismetSystemLibrary::ExecuteConsoleCommand(GetWorld(), L"log LogOnlineGame VeryVerbose", PlayerController);
+    UKismetSystemLibrary::ExecuteConsoleCommand(GetWorld(), L"log LogAthenaBots VeryVerbose", PlayerController);
+    UKismetSystemLibrary::ExecuteConsoleCommand(GetWorld(), L"log LogNavigation VeryVerbose", PlayerController);
+    UKismetSystemLibrary::ExecuteConsoleCommand(GetWorld(), L"log LogAbilitySystem VeryVerbose", PlayerController);
+    UKismetSystemLibrary::ExecuteConsoleCommand(GetWorld(), L"log LogFortAIDirector VeryVerbose", PlayerController);
+
+    // UObject::FindObject<UNavCollision>("/Script/NavigationSystem.Default__NavCollision")->bCreateOnClient = true;
+
+    std::cout << std::format("vafqe2: 0x{:x}\n", __int64(UObject::FindObject<UNavCollision>("/Script/NavigationSystem.Default__NavCollision")->VFT) - __int64(GetModuleHandleW(0)));
+
+    // CREATE_HOOK(NavCollisionConstructorHook, NavCollisionConstructorOriginal);
+    CREATE_HOOK(AddNavigationSystemToWorldHook, AddNavigationSystemToWorldOriginal);
+    CREATE_HOOK(GetNetModeHook, GetNetMode);
 
     PlayerController->SwitchLevel(L"Athena_Terrain");
 
@@ -92,8 +104,6 @@ DWORD WINAPI Main(LPVOID)
     srand(time(0));
 
     CREATE_HOOK(rettrue, CollectGarbage);
-
-    CREATE_HOOK(GetNetModeHook, GetNetMode);
 
     if (true)
     {
@@ -112,7 +122,7 @@ DWORD WINAPI Main(LPVOID)
     // CREATE_HOOK(SetCurrentPlaylistNameHOOK, SetCurrentPlaylistName);
 
     auto CanActivateAbilityAddress = (void*)(__int64(GetModuleHandleW(0)) + 0x9214C0);
-    // CREATE_HOOK(rettrue, CanActivateAbilityAddress);
+    CREATE_HOOK(rettrue, CanActivateAbilityAddress);
 
     // CreateThread(0, 0, InputThread, 0, 0, 0);
 
@@ -316,6 +326,7 @@ DWORD WINAPI Main(LPVOID)
     CREATE_HOOK(GetMaxTickRateHook, GetMaxTickRate);
     CREATE_HOOK(ClientOnPawnDiedHook, ClientOnPawnDied);
     CREATE_HOOK(OnCapsuleBeginOverlapHook, OnCapsuleBeginOverlapOriginal);
+    CREATE_HOOK(CanCreateInCurrentContextHook, CanCreateInCurrentContextOriginal);
     CREATE_HOOK(AFortGameSessionDedicatedAthena_SetMatchStartTimeHook, AFortGameSessionDedicatedAthena_SetMatchStartTimeOriginal);
     // CREATE_HOOK(BoiWatTheMarkerCRashHook, BoiWatTheMarkerCRashOriginal);
     // CREATE_HOOK(IsPlaysetWithinVolumeBoundsHook, IsPlaysetWithinVolumeBoundsOriginal);

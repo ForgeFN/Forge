@@ -456,14 +456,54 @@ std::vector<FFortItemEntry> PickLootDrops(FName TierGroupName, bool bPrint = fal
 
         auto GameState = (AFortGameStateAthena*)GetWorld()->GameState;
 
-        auto MainLTD = GameState->CurrentPlaylistInfo.BasePlaylist ? GameState->CurrentPlaylistInfo.BasePlaylist->LootTierData.Get() : nullptr;
-        auto MainLP = GameState->CurrentPlaylistInfo.BasePlaylist ? GameState->CurrentPlaylistInfo.BasePlaylist->LootPackages.Get() : nullptr;
+        UDataTable* MainLTD = nullptr;
+        UDataTable* MainLP = nullptr;
+
+        if (false)
+        {
+            if (GameState->CurrentPlaylistInfo.BasePlaylist)
+            {
+                std::cout << "GameState->CurrentPlaylistInfo.BasePlaylist Name: " << GameState->CurrentPlaylistInfo.BasePlaylist->GetFullName() << '\n';
+
+                std::cout << "GameState->CurrentPlaylistInfo.BasePlaylist->LootTierData.ObjectID.AssetPathName.ComparisonIndex: " << GameState->CurrentPlaylistInfo.BasePlaylist->LootTierData.ObjectID.AssetPathName.ComparisonIndex << '\n';
+                std::cout << "GameState->CurrentPlaylistInfo.BasePlaylist->LootPackages.ObjectID.AssetPathName.ComparisonIndex: " << GameState->CurrentPlaylistInfo.BasePlaylist->LootPackages.ObjectID.AssetPathName.ComparisonIndex << '\n';
+
+                if (GameState->CurrentPlaylistInfo.BasePlaylist->LootTierData.ObjectID.AssetPathName.ComparisonIndex > 0)
+                {
+                    std::string asdigui = GameState->CurrentPlaylistInfo.BasePlaylist->LootTierData.ObjectID.AssetPathName.ToString();
+
+                    std::cout << "asdigui LTD: " << asdigui << '\n';
+
+                    if (asdigui.contains("Composite")) MainLTD = UObject::FindObject<UCompositeDataTable>(asdigui);
+                    else MainLTD = UObject::FindObject<UDataTable>(asdigui);
+                }
+                if (GameState->CurrentPlaylistInfo.BasePlaylist->LootPackages.ObjectID.AssetPathName.ComparisonIndex > 0)
+                {
+                    std::string asdigui = GameState->CurrentPlaylistInfo.BasePlaylist->LootPackages.ObjectID.AssetPathName.ToString();
+
+                    std::cout << "asdigui LP: " << asdigui << '\n';
+
+                    if (asdigui.contains("Composite")) MainLP = UObject::FindObject<UCompositeDataTable>(asdigui);
+                    else MainLP = UObject::FindObject<UDataTable>(asdigui);
+                }
+            }
+            else
+            {
+                std::cout << "NO PLAYLIST!?!?!\n";
+            }
+        }
+
+        // auto MainLTD = GameState->CurrentPlaylistInfo.BasePlaylist ? GameState->CurrentPlaylistInfo.BasePlaylist->LootTierData.Get() : nullptr;
+        // auto MainLP = GameState->CurrentPlaylistInfo.BasePlaylist ? GameState->CurrentPlaylistInfo.BasePlaylist->LootPackages.Get() : nullptr;
      
+        std::cout << "MainLTDBef: " << MainLTD << '\n';
+        std::cout << "MainLPBef: " << MainLP << '\n';
+
         if (!MainLTD)
             MainLTD = UObject::FindObject<UDataTable>("/Game/Items/Datatables/AthenaLootTierData_Client.AthenaLootTierData_Client");
 
         if (!MainLP)
-            MainLP = (UCompositeDataTable*)UObject::FindObject<UDataTable>("/Game/Items/Datatables/AthenaLootPackages_Client.AthenaLootPackages_Client");
+            MainLP = UObject::FindObject<UDataTable>("/Game/Items/Datatables/AthenaLootPackages_Client.AthenaLootPackages_Client");
 
         if (!MainLTD || !MainLP)
         {
@@ -472,10 +512,10 @@ std::vector<FFortItemEntry> PickLootDrops(FName TierGroupName, bool bPrint = fal
             return LootDrops;
         }
 
-        auto ltdToUse = MainLTD;
-
-        if (MainLP->IsA(UCompositeDataTable::StaticClass()))
+        /* if (MainLTD->IsA(UCompositeDataTable::StaticClass()))
         {
+            std::cout << "((UCompositeDataTable*)MainLTD)->ParentTables.Num(): " << ((UCompositeDataTable*)MainLTD)->ParentTables.Num() << '\n';
+            
             for (int i = 0; i < ((UCompositeDataTable*)MainLTD)->ParentTables.Num(); i++)
             {
                 auto Table = ((UCompositeDataTable*)MainLTD)->ParentTables[i];
@@ -483,38 +523,34 @@ std::vector<FFortItemEntry> PickLootDrops(FName TierGroupName, bool bPrint = fal
                 if (!Table)
                     continue;
 
-                if (Table->GetName().contains("Override"))
-                {
-                    ltdToUse = Table;
-                    std::cout << "Found overrideLTD!\n";
-                    break;
-                }
+                auto TableName = Table->GetName();
+
+                std::cout << std::format("[{}] LTD {}\n", i, TableName);
+
+                LTDTables.push_back(Table);
             }
-        }
+        } */
 
-        LTDTables.push_back(ltdToUse);
+        LTDTables.push_back(MainLTD);
 
-        auto lpToUse = (UDataTable*)MainLP;
-
-        if (MainLP->IsA(UCompositeDataTable::StaticClass()))
+        /* if (MainLP->IsA(UCompositeDataTable::StaticClass()))
         {
-            for (int i = 0; i < MainLP->ParentTables.Num(); i++)
+            for (int i = 0; i < ((UCompositeDataTable*)MainLP)->ParentTables.Num(); i++)
             {
-                auto Table = MainLP->ParentTables[i];
+                auto Table = ((UCompositeDataTable*)MainLP)->ParentTables[i];
 
                 if (!Table)
                     continue;
 
-                if (Table->GetName().contains("Override"))
-                {
-                    lpToUse = Table;
-                    std::cout << "Found overrideLP!\n";
-                    break;
-                }
-            }
-        }
+                auto TableName = Table->GetName();
 
-        LPTables.push_back(lpToUse);
+                std::cout << std::format("[{}] LP {}\n", i, TableName);
+
+                LPTables.push_back(Table);
+            }
+        } */
+
+        LPTables.push_back(MainLP);
     }
 
     std::vector<FFortLootTierData*> TierGroupLTDs;

@@ -12,6 +12,7 @@
 
 #include "moderation.h"
 #include "util.h"
+#include "ai.h"
 
 void (*ProcessEvent)(UObject* Object, UFunction* Function, void* Parameters) = decltype(ProcessEvent)((uintptr_t)GetModuleHandleW(0) + 0x22f2990);
 
@@ -493,8 +494,6 @@ bool ReadyToStartMatchHook(AFortGameModeAthena* GameMode)
 	if (ActorsNum == 0)
 		return false;
 
-	// we would do playlist here
-
 	if (!Globals::bCreative)
 	{
 		static int Last3 = 23985234;
@@ -586,6 +585,11 @@ bool ReadyToStartMatchHook(AFortGameModeAthena* GameMode)
 
 		GameState->DefaultRebootMachineHotfix = 1;
 
+		std::cout << "NavigationSystem: " << GetWorld()->NavigationSystem << '\n';
+
+		if (GetWorld()->NavigationSystem)
+			std::cout << "NavigationSystem Name: " << GetWorld()->NavigationSystem->GetFullName() << '\n';
+
 		TArray<AActor*> AllVehicleSpawners;
 		UGameplayStatics::GetAllActorsOfClass(GetWorld(), AFortAthenaVehicleSpawner::StaticClass(), &AllVehicleSpawners);
 
@@ -671,6 +675,15 @@ bool ReadyToStartMatchHook(AFortGameModeAthena* GameMode)
 			}
 		}
 
+		SetupNavConfig();
+		SetupBotManager();
+		SetupAIDirector();
+
+		bool success;
+
+		ULevelStreamingDynamic::LoadLevelInstance(GetWorld(), L"/Game/Athena/Maps/Athena_Nav_Mall", { 0, 0, 3000 }, {}, &success);
+		ULevelStreamingDynamic::LoadLevelInstance(GetWorld(), L"/Game/Athena/Maps/Athena_Nav_Mall", { 0, 0, 3000 }, {}, &success);
+
 		GameMode->WarmupRequiredPlayerCount = Globals::bMinimumPlayersToDropLS;
 
 		static char (*SpawnLoot)(ABuildingContainer* BuildingContainer, AFortPlayerPawnAthena* Pawn, int idk, int idk2) = decltype(SpawnLoot)(__int64(GetModuleHandleW(0)) + 0x13A91C0);
@@ -736,6 +749,37 @@ bool ReadyToStartMatchHook(AFortGameModeAthena* GameMode)
 	bool ret = ReadyToStartMatch(GameMode); // !Globals::bCreative;
 	return ret;
 }
+
+// void (*AddNavigationSystemToWorldOriginal)(__int64 WorldOwner, unsigned __int8 RunMode, UNavigationSystemConfig* NavigationSystemConfig, char bInitializeForWorld,
+	// char bOverridePreviousNavSys) = decltype(AddNavigationSystemToWorldOriginal)(__int64(GetModuleHandleW(0)) + 0x2E52490);
+
+/* void (*SetNavigationSystemOriginal)(UWorld* a1, UNavigationSystemBase* InNavigationSystem) = decltype(SetNavigationSystemOriginal)(__int64(GetModuleHandleW(0)) + 0x34DCE10);
+
+void SetNavigationSystemHook(UWorld* a1, UNavigationSystemBase* InNavigationSystem)
+{
+	return SetNavigationSystemOriginal(a1, InNavigationSystem);
+} */
+
+/*
+void AddNavigationSystemToWorldHook(__int64 WorldOwner, unsigned __int8 RunMode, UNavigationSystemConfig* NavigationSystemConfig, char bInitializeForWorld, char bOverridePreviousNavSys)
+{
+	std::cout << "Add nav system!\n";
+
+	std::cout << "NavigationSystemConfig: " << NavigationSystemConfig << '\n';
+
+	if (NavigationSystemConfig)
+		std::cout << "NavigationSystemConfig Name: " << NavigationSystemConfig->GetFullName() << '\n';
+
+	if (!NavigationSystemConfig)
+	{
+		// NavigationSystemConfig = UGameplayStatics::SpawnObject(UNavigationSystemConfig::StaticClass(), )
+	}
+
+	std::cout << "after: " << NavigationSystemConfig << '\n';
+
+	return AddNavigationSystemToWorldOriginal(WorldOwner, RunMode, NavigationSystemConfig, bInitializeForWorld, bOverridePreviousNavSys);
+}
+*/
 
 void ServerAcknowledgePossessionHook(APlayerController* PlayerController, APawn* P)
 {
@@ -1209,26 +1253,6 @@ bool MakeNewCreativePlotHook(UObject* Object, UFunction*, void* Parameters)
 	return false;
 }
 
-void GiveFortAbilitySet(AFortPlayerState* PlayerState, UFortAbilitySet* FortAbilitySet)
-{
-	for (int i = 0; i < FortAbilitySet->GameplayAbilities.Num(); i++)
-	{
-		UClass* AbilityClass = FortAbilitySet->GameplayAbilities[i];
-		UGameplayAbility* AbilityDefaultObject = (UGameplayAbility*)AbilityClass->CreateDefaultObject();
-
-		FGameplayAbilitySpecHandle Handle{};
-		Handle.GenerateNewHandle();
-
-		FGameplayAbilitySpec Spec{ -1, -1, -1 };
-		Spec.Ability = AbilityDefaultObject;
-		Spec.Level = 0;
-		Spec.InputID = -1;
-		Spec.Handle = Handle;
-
-		GiveAbility(PlayerState->AbilitySystemComponent, &Handle, Spec);
-	}
-}
-
 char (*IsPlaysetWithinVolumeBoundsOriginal)(__int64 VolumeManager, float* StartLocation, __int64 PlaysetRotation, __int64 NewPlayset) = decltype(IsPlaysetWithinVolumeBoundsOriginal)
 (__int64(GetModuleHandleW(0)) + 0x143C260);
 
@@ -1312,7 +1336,6 @@ void HandleStartingNewPlayerHook(AFortGameModeAthena* GameMode, AFortPlayerContr
 
 		SpawnFloorLoot();
 		FillVendingMachines();
-
 
 		TArray<AActor*> AllBGASpawners;
 		UGameplayStatics::GetAllActorsOfClass(GetWorld(), ABGAConsumableSpawner::StaticClass(), &AllBGASpawners);
@@ -1527,64 +1550,7 @@ void HandleStartingNewPlayerHook(AFortGameModeAthena* GameMode, AFortPlayerContr
 			if (!Modifier)
 				continue;
 
-			for (int j = 0; j < Modifier->PersistentAbilitySets.Num(); j++)
-			{
-				auto& AbilitySet = Modifier->PersistentAbilitySets[j];
-
-				if (AbilitySet.DeliveryRequirements.bConsiderTeam)
-					continue; // UNSUPPORTED
-
-				if (!AbilitySet.DeliveryRequirements.bApplyToPlayerPawns)
-					continue;
-
-				auto AbilitySets = AbilitySet.AbilitySets;
-
-				if (!AbilitySets.Data)
-					continue;
-
-				for (int k = 0; k < AbilitySets.Num(); k++)
-				{
-					auto& AbilitySetClassSoft = AbilitySets[k];
-					auto AbilitySetClass = AbilitySetClassSoft.Get();
-
-					if (!AbilitySetClass)
-						continue;
-
-					GiveFortAbilitySet(PlayerState, AbilitySetClass);
-				}
-			}
-
-			continue;
-
-			for (int j = 0; i < Modifier->PersistentGameplayEffects.Num(); j++)
-			{
-				auto& GameplayEffect = Modifier->PersistentGameplayEffects[j];
-
-				if (GameplayEffect.DeliveryRequirements.bConsiderTeam)
-					continue; // UNSUPPORTED
-
-				if (!GameplayEffect.DeliveryRequirements.bApplyToPlayerPawns)
-					continue;
-
-				auto GameplayEffects = GameplayEffect.GameplayEffects;
-
-				if (!GameplayEffects.Data)
-					continue;
-
-				for (int k = 0; k < GameplayEffects.Num(); k++)
-				{
-					auto& GameplayEffectInfo = GameplayEffects[k];
-					auto GameplayEffectClassSoft = GameplayEffectInfo.GameplayEffect; // WTF
-					auto GameplayEffectClass = GameplayEffectClassSoft.ObjectID.AssetPathName.ComparisonIndex ? GameplayEffectClassSoft.Get() : nullptr;
-
-					if (!GameplayEffectClass)
-						continue;
-
-					FGameplayEffectContextHandle contextHandle{};
-
-					PlayerState->AbilitySystemComponent->BP_ApplyGameplayEffectToSelf(GameplayEffectClass, GameplayEffectInfo.Level, contextHandle);
-				}
-			}
+			ApplyModifierItemDefinition(Modifier, PlayerState->AbilitySystemComponent);
 		}
 	}
 
@@ -2941,6 +2907,13 @@ void ClientOnPawnDiedHook(AFortPlayerControllerAthena* DeadPlayerController, FFo
 	}
 
 	return ClientOnPawnDied(DeadPlayerController, DeathReport);
+}
+
+static bool (*CanCreateInCurrentContextOriginal)(UObject* Template) = decltype(CanCreateInCurrentContextOriginal)(__int64(GetModuleHandleW(0)) + 0x22A30C0);
+
+bool CanCreateInCurrentContextHook(UObject* Template)
+{
+	return reinterpret_cast<bool(*)(UObject*)>(Template->VFT[0xD8 / 8])(Template);
 }
 
 static void (*ReceiveActorEndOverlap)(AActor* Actor, AActor* OtherActor);

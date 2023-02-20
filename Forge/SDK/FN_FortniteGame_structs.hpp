@@ -9169,7 +9169,8 @@ struct FFortAISpawnGroupUpgradeUIData
 	bool                                               bAlwaysDisplayHealthBar;                                  // 0x0000(0x0001) (Edit, ZeroConstructor, DisableEditOnInstance, IsPlainOldData, NoDestructor, HasGetValueTypeHash, NativeAccessSpecifierPublic)
 	bool                                               bOverrideHealthBarColor;                                  // 0x0001(0x0001) (Edit, ZeroConstructor, DisableEditOnInstance, IsPlainOldData, NoDestructor, HasGetValueTypeHash, NativeAccessSpecifierPublic)
 	unsigned char                                      UnknownData00[0x6];                                       // 0x0002(0x0006) MISSED OFFSET
-	unsigned char                                      UnknownData01[0x28];                                      // 0x0002(0x0028) UNKNOWN PROPERTY: SoftObjectProperty FortniteGame.FortAISpawnGroupUpgradeUIData.UpgradeIconImage
+	// unsigned char                                      UnknownData01[0x28];                                      // 0x0002(0x0028) UNKNOWN PROPERTY: SoftObjectProperty FortniteGame.FortAISpawnGroupUpgradeUIData.UpgradeIconImage
+	TSoftObjectPtr<class UTexture2D>             UpgradeIconImage;
 	struct FSlateColor                                 UpgradeIconTintColor;                                     // 0x0030(0x0028) (Edit, DisableEditOnInstance, NativeAccessSpecifierPublic)
 	struct FLinearColor                                HealthBarColorOverride;                                   // 0x0058(0x0010) (Edit, ZeroConstructor, DisableEditOnInstance, IsPlainOldData, NoDestructor, HasGetValueTypeHash, NativeAccessSpecifierPublic)
 	struct FText                                       UpgradeName;                                              // 0x0068(0x0018) (Edit, DisableEditOnInstance, NativeAccessSpecifierPublic)
