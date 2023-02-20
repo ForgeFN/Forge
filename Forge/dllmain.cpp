@@ -46,7 +46,7 @@ DWORD WINAPI Main(LPVOID)
 
     std::ios::sync_with_stdio(false);
 
-    std::cout << std::format("Base Address: 0x{:x}\n", __int64(GetModuleHandleW(0)));
+    std::cout << std::format("[Init] Base Address: 0x{:x}\n", __int64(GetModuleHandleW(0)));
 
     UObject::GObjects = decltype(UObject::GObjects)(__int64(GetModuleHandleW(0)) + 0x64a0090);
 
@@ -88,7 +88,7 @@ DWORD WINAPI Main(LPVOID)
 
     // UObject::FindObject<UNavCollision>("/Script/NavigationSystem.Default__NavCollision")->bCreateOnClient = true;
 
-    std::cout << std::format("vafqe2: 0x{:x}\n", __int64(UObject::FindObject<UNavCollision>("/Script/NavigationSystem.Default__NavCollision")->VFT) - __int64(GetModuleHandleW(0)));
+    // std::cout << std::format("vafqe2: 0x{:x}\n", __int64(UObject::FindObject<UNavCollision>("/Script/NavigationSystem.Default__NavCollision")->VFT) - __int64(GetModuleHandleW(0)));
 
     // CREATE_HOOK(NavCollisionConstructorHook, NavCollisionConstructorOriginal);
     CREATE_HOOK(AddNavigationSystemToWorldHook, AddNavigationSystemToWorldOriginal);
@@ -333,7 +333,7 @@ DWORD WINAPI Main(LPVOID)
 
     // HookCall((uint8_t*)(__int64(GetModuleHandleW(0)) + 0x1C59EC2), (uint8_t*)rettrue);
 
-    std::cout << "Finished hooks!\n";
+    std::cout << "[Init] Finished hooks!\n";
     
     /*
     auto matchmaking = __int64(GetModuleHandleW(0)) + 0x34D4C63;

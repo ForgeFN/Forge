@@ -71,7 +71,7 @@ inline __int64 GetFunctionIdxOrPtr2(UFunction* Function, bool bHookExec = false)
 {
 	auto NativeAddr = __int64(Function->Func);
 
-	std::cout << std::format("{} Exec: 0x{:x}\n", Function->GetName(), NativeAddr - __int64(GetModuleHandleW(0)));
+	// std::cout << std::format("{} Exec: 0x{:x}\n", Function->GetName(), NativeAddr - __int64(GetModuleHandleW(0)));
 
 	if (bHookExec)
 		return NativeAddr;
@@ -95,7 +95,7 @@ inline __int64 GetFunctionIdxOrPtr2(UFunction* Function, bool bHookExec = false)
 		}
 	}
 
-	std::cout << std::format("RETT {}: 0x{:x}\n", Function->GetName(), RetAddr - __int64(GetModuleHandleW(0)));
+	// std::cout << std::format("RETT {}: 0x{:x}\n", Function->GetName(), RetAddr - __int64(GetModuleHandleW(0)));
 
 	int i = 0;
 
@@ -121,7 +121,7 @@ inline __int64 GetFunctionIdxOrPtr2(UFunction* Function, bool bHookExec = false)
 				continue;
 			} */
 
-			std::cout << "found vcall!\n";
+			// std::cout << "found vcall!\n";
 
 			auto SecondByte = *(uint8_t*)(CurrentAddy + 2);
 			auto ThirdByte = *(uint8_t*)(CurrentAddy + 3);
@@ -157,7 +157,7 @@ inline __int64 GetFunctionIdxOrPtr(UFunction* Function, bool bHookExec = false, 
 {
 	auto NativeAddr = __int64(Function->Func);
 
-	std::cout << std::format("{} Exec: 0x{:x}\n", Function->GetName(), NativeAddr - __int64(GetModuleHandleW(0)));
+	// std::cout << std::format("{} Exec: 0x{:x}\n", Function->GetName(), NativeAddr - __int64(GetModuleHandleW(0)));
 
 	if (bHookExec)
 		return NativeAddr;
@@ -204,11 +204,11 @@ inline __int64 GetFunctionIdxOrPtr(UFunction* Function, bool bHookExec = false, 
 
 			// bytes.erase(std::remove(bytes.begin(), bytes.end(), '0'), bytes.end());
 
-			std::cout << Function->GetName() + " Bytes: " << bytes << '\n';
+			// std::cout << Function->GetName() + " Bytes: " << bytes << '\n';
 
 			auto decidx = HexToDec(bytes);
 
-			std::cout << "decidx: " << decidx << '\n';
+			// std::cout << "decidx: " << decidx << '\n';
 
 			return decidx;
 		}
@@ -238,11 +238,11 @@ inline __int64 GetFunctionIdxOrPtr(UFunction* Function, bool bHookExec = false, 
 
 				// bytes.erase(std::remove(bytes.begin(), bytes.end(), '0'), bytes.end());
 
-				std::cout << Function->GetName() + " Bytes: " << bytes << '\n';
+				// std::cout << Function->GetName() + " Bytes: " << bytes << '\n';
 
 				auto decidx = HexToDec(bytes);
 
-				std::cout << "decidx: " << decidx << '\n';
+				// std::cout << "decidx: " << decidx << '\n';
 
 				return decidx;
 			}
@@ -264,7 +264,7 @@ inline __int64 GetFunctionIdxOrPtr(UFunction* Function, bool bHookExec = false, 
 
 	__int64 functionAddy = 0;
 
-	std::cout << " not virtual!\n";
+	// std::cout << " not virtual!\n";
 
 	if (RetAddr)
 	{
@@ -347,7 +347,7 @@ inline void UnhookFunction(UObject* DefaultClass, UFunction* Function, void* Cur
 
 			void* aa = nullptr;
 
-			std::cout << std::format("{} 0x{:x}\n", Function->GetFullName(), Thing - __int64(GetModuleHandleW(0)));
+			// std::cout << std::format("{} 0x{:x}\n", Function->GetFullName(), Thing - __int64(GetModuleHandleW(0)));
 
 			REMOVE_HOOK(CurrentHooked, OldFunc);
 		}
@@ -402,7 +402,7 @@ inline void HookFunction(UObject* DefaultClass, UFunction* Function, void* NewFu
 
 			*OG = (void*)Thing;
 
-			std::cout << std::format("{} 0x{:x}\n", Function->GetFullName(), Thing - __int64(GetModuleHandleW(0)));
+			// std::cout << std::format("{} 0x{:x}\n", Function->GetFullName(), Thing - __int64(GetModuleHandleW(0)));
 
 			CREATE_HOOK(NewFunc, *OG);
 		}

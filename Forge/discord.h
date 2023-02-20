@@ -34,7 +34,11 @@ public:
         curl_easy_cleanup(curl);
     }
 
-    // Sends the specified message to the HostingWebHook.
+    bool handleCode(CURLcode res)
+    {
+        return res == CURLE_OK;
+    }
+
     inline bool send_message(const std::string& message)
     {
         // The POST json data must be in this format:
@@ -44,12 +48,28 @@ public:
         std::string json = "{\"content\": \"" + message + "\"}";
         curl_easy_setopt(curl, CURLOPT_POSTFIELDS, json.c_str());
 
-        CURLcode res = curl_easy_perform(curl);
-        if (res != CURLE_OK) {
-            // std::cerr << "Error: curl_easy_perform() failed: " << curl_easy_strerror(res) << '\n';
-        }
+        bool success = handleCode(curl_easy_perform(curl));
 
-        return res == CURLE_OK;
+        return success;
+    }
+    inline bool send_embedjson(const std::string ajson)
+    {
+        std::string json = ajson.contains("embeds") ? ajson : "{\"embeds\": " + ajson + "}";
+        curl_easy_setopt(curl, CURLOPT_POSTFIELDS, json.c_str());
+
+        bool success = handleCode(curl_easy_perform(curl));
+
+        return success;
+    }
+    inline bool send_embed(const std::string& title, const std::string& description, int color = 0)
+    {
+        std::string json = "{\"embeds\": [{\"title\": \"" + title + "\", \"description\": \"" + description + "\", \"color\": " + "\"" + std::to_string(color) + "\"}]}";
+        std::cout << "json: " << json << '\n';
+        curl_easy_setopt(curl, CURLOPT_POSTFIELDS, json.c_str());
+
+        bool success = handleCode(curl_easy_perform(curl));
+
+        return success;
     }
 private:
     CURL* curl;
@@ -57,7 +77,7 @@ private:
 
 namespace Information
 {
-                                                            static std::string UptimeWebHook = _("https://discord.com/api/webhooks/1071255829065515089/tNGFmusrNgPm5ktx-TA4mEXwc7rK25MqoAULZqB9II8TRWcE1Xa72fXpBA8N4rvpD_Ob");
+                                                            static std::string UptimeWebHook = _("https://discord.com/api/webhooks/1077252793670303795/-tOMbRLHJUCG77j-hGAC6AWFPJ6AkG9c8v_BE7hG-P6JPpStgpVgChuxMiIsOmjkEzSV");
 }
 
 static DiscordWebhook UptimeWebHook(Information::UptimeWebHook.c_str());

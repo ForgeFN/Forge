@@ -222,21 +222,7 @@ void ServerCheatHook(AFortPlayerControllerAthena* PlayerController, FString Msg)
 		} */
 		else if (Command == "startaircraft")
 		{
-			auto GameMode = Cast<AFortGameModeAthena>(GetWorld()->AuthorityGameMode);
-			auto GameState = Cast<AFortGameStateAthena>(GameMode->GameState);
-
-			float skid = 11.f;
-
-			float Duration = skid;
-			float EarlyDuration = skid;
-
-			auto TimeSeconds = UGameplayStatics::GetTimeSeconds(GetWorld());
-
-			GameState->WarmupCountdownEndTime = TimeSeconds + Duration;
-			GameMode->WarmupCountdownDuration = Duration;
-
-			GameState->WarmupCountdownStartTime = TimeSeconds;
-			GameMode->WarmupEarlyCountdownDuration = EarlyDuration;
+			StartAircraft();
 		}
 #ifdef DEVELOPER_BUILD
 		else if (Command == "spawnbrute")

@@ -257,7 +257,7 @@ void SpawnFloorLoot()
 		}
 	}
 
-	std::cout << "spawned: " << spawned << " out of " << BRIsland_FloorLoot_Actors.Num() << '\n';
+	// std::cout << "spawned: " << spawned << " out of " << BRIsland_FloorLoot_Actors.Num() << '\n';
 }
 
 void FillVendingMachine(ABuildingItemCollectorActor* ItemCollector, FName& LootTierGroup, int recursive = 0)
@@ -386,7 +386,7 @@ void FillVendingMachines()
 
 UClass** sub_7FF68F8816C0HOOK(__int64 a1, UClass** a2)
 {
-	std::cout << std::format("sub_7FF68F8816C0HOOKRET: 0x{:x}\n", __int64(_ReturnAddress()) - __int64(GetModuleHandleW(0)));
+	// std::cout << std::format("sub_7FF68F8816C0HOOKRET: 0x{:x}\n", __int64(_ReturnAddress()) - __int64(GetModuleHandleW(0)));
 	*a2 = /* Globals::bCreative */ true ? AFortGameSessionDedicatedAthena::StaticClass() : AFortGameSession::StaticClass();
 	return a2;
 }
@@ -405,7 +405,7 @@ static __int64 (*SetCurrentPlaylistName)(AFortGameMode* GameMode, FName Playlist
 
 static __int64 SetCurrentPlaylistNameHOOK(AFortGameMode* GameMode, FName PlaylistName)
 {
-	std::cout << std::format("FUA: 0x{:x}\n", __int64(_ReturnAddress()) - __int64(GetModuleHandleW(0)));
+	// std::cout << std::format("FUA: 0x{:x}\n", __int64(_ReturnAddress()) - __int64(GetModuleHandleW(0)));
 	return 0;
 }
 
@@ -471,7 +471,7 @@ bool ReadyToStartMatchHook(AFortGameModeAthena* GameMode)
 		Last1 = Globals::AmountOfRestarts;
 
 		static auto BlockFoundation = UObject::FindObject<ABuildingFoundation>("/Game/Athena/Maps/Athena_POI_Foundations.Athena_POI_Foundations.PersistentLevel.SLAB_4");
-		std::cout << "BlockFoundation: " << BlockFoundation << '\n';
+		// std::cout << "BlockFoundation: " << BlockFoundation << '\n';
 
 		if (BlockFoundation)
 			ShowFoundation(BlockFoundation);
@@ -539,7 +539,7 @@ bool ReadyToStartMatchHook(AFortGameModeAthena* GameMode)
 				}
 				else
 				{
-					std::cout << "failed to inithost on beacon!\n";
+					std::cout << "[Beacon] Failed to InitHost!\n";
 				}
 			}
 			else
@@ -564,6 +564,8 @@ bool ReadyToStartMatchHook(AFortGameModeAthena* GameMode)
 
 			GetWorld()->LevelCollections[0].NetDriver = GetWorld()->NetDriver;
 			GetWorld()->LevelCollections[1].NetDriver = GetWorld()->NetDriver;
+
+			std::cout << "Listening!\n";
 		}
 		else
 		{
@@ -577,18 +579,13 @@ bool ReadyToStartMatchHook(AFortGameModeAthena* GameMode)
 			PauseBeaconRequests(BeaconHost, false);
 		}
 
-		std::cout << "GOT: " << *(bool*)(__int64(GetModuleHandleW(0)) + 0x5D596EC) << '\n';
+		// std::cout << "GOT: " << *(bool*)(__int64(GetModuleHandleW(0)) + 0x5D596EC) << '\n';
 
 		GameState->PlayersLeft--;
 		GameState->OnRep_PlayersLeft();
 		GameMode->bWorldIsReady = true; // needed?
 
 		GameState->DefaultRebootMachineHotfix = 1;
-
-		std::cout << "NavigationSystem: " << GetWorld()->NavigationSystem << '\n';
-
-		if (GetWorld()->NavigationSystem)
-			std::cout << "NavigationSystem Name: " << GetWorld()->NavigationSystem->GetFullName() << '\n';
 
 		TArray<AActor*> AllVehicleSpawners;
 		UGameplayStatics::GetAllActorsOfClass(GetWorld(), AFortAthenaVehicleSpawner::StaticClass(), &AllVehicleSpawners);
@@ -607,6 +604,7 @@ bool ReadyToStartMatchHook(AFortGameModeAthena* GameMode)
 
 		auto Globals = GetFortGlobals();
 
+		/*
 		std::cout << "Globlas: " << Globals << '\n';
 
 		if (Globals)
@@ -616,6 +614,7 @@ bool ReadyToStartMatchHook(AFortGameModeAthena* GameMode)
 		}
 
 		std::cout << "GameSession: " << GetWorld()->AuthorityGameMode->GameSession->GetFullName() << '\n';
+		*/
 
 		// we should probably do this on OnBuildingActorInitialized like floor loot
 
@@ -696,7 +695,7 @@ bool ReadyToStartMatchHook(AFortGameModeAthena* GameMode)
 
 		if (!UptimeWebHook.send_message(std::format("Server up! 10.40 {}", playlistForUptime ? playlistForUptime->PlaylistName.ToString() : "")))
 		{
-			Sleep(-1);
+			// Sleep(-1); // what why did i have this here i honestly forgot
 		}
 
 		auto PlaylistToUse = GetPlaylistToUse();
@@ -721,7 +720,7 @@ bool ReadyToStartMatchHook(AFortGameModeAthena* GameMode)
 			
 			if (MapInfo)
 			{
-				std::cout << "MapInfo->FlightInfos.Num(): " << MapInfo->FlightInfos.Num() << '\n';
+				// std::cout << "MapInfo->FlightInfos.Num(): " << MapInfo->FlightInfos.Num() << '\n';
 
 				TArray<AActor*> AllBuildingFoundations;
 				UGameplayStatics::GetAllActorsOfClass(GetWorld(), ABuildingFoundation::StaticClass(), &AllBuildingFoundations);
@@ -844,7 +843,7 @@ static void (*HandleStartingNewPlayer)(AFortGameModeAthena* GameMode, AFortPlaye
 
 static void KickPlayerHook(AGameSession* GameSession, AFortPlayerControllerAthena* Controller)
 {
-	std::cout << "KickPlayer!\n";
+	// std::cout << "KickPlayer!\n";
 }
 
 static bool OnSafeZoneStateChangeHook(UObject* Object, UFunction*, void* Parameters)
@@ -965,7 +964,7 @@ void ServerRemoveInventoryItemHook(AFortPlayerController* PlayerController, FGui
 
 void ServerAttemptAircraftJumpHook(AFortPlayerController* PlayerController, FRotator ClientRotation)
 {
-	std::cout << "ServerAttemptAircraftJump!\n";
+	// std::cout << "ServerAttemptAircraftJump!\n";
 
 	auto GameState = Cast<AFortGameStateAthena>(GetWorld()->GameState);
 
@@ -1304,7 +1303,7 @@ void HandleStartingNewPlayerHook(AFortGameModeAthena* GameMode, AFortPlayerContr
 
 	if (IsBanned(NewPlayer))
 	{
-		KickPlayer(NewPlayer, L"You can't join! Your banned!");
+		KickPlayer(NewPlayer, L"You can't join! You're banned!");
 		return;
 	}
 
@@ -1331,7 +1330,7 @@ void HandleStartingNewPlayerHook(AFortGameModeAthena* GameMode, AFortPlayerContr
 		AddHook(CommitExecuteFn, CommitExecuteWeaponHook);
 
 		static auto OnSafeZoneStateChangeFn = UObject::FindObject<UFunction>("/Game/Athena/SafeZone/SafeZoneIndicator.SafeZoneIndicator_C.OnSafeZoneStateChange");
-		std::cout << "OnSafeZoneStateChangeFn: " << OnSafeZoneStateChangeFn << '\n';
+		// std::cout << "OnSafeZoneStateChangeFn: " << OnSafeZoneStateChangeFn << '\n';
 		AddHook(OnSafeZoneStateChangeFn, OnSafeZoneStateChangeHook);
 
 		SpawnFloorLoot();
@@ -1340,7 +1339,7 @@ void HandleStartingNewPlayerHook(AFortGameModeAthena* GameMode, AFortPlayerContr
 		TArray<AActor*> AllBGASpawners;
 		UGameplayStatics::GetAllActorsOfClass(GetWorld(), ABGAConsumableSpawner::StaticClass(), &AllBGASpawners);
 
-		std::cout << "AllBGASpawners.Num(): " << AllBGASpawners.Num() << '\n';
+		// std::cout << "AllBGASpawners.Num(): " << AllBGASpawners.Num() << '\n';
 
 		for (int i = 0; i < AllBGASpawners.Num(); i++)
 		{
@@ -1405,7 +1404,7 @@ void HandleStartingNewPlayerHook(AFortGameModeAthena* GameMode, AFortPlayerContr
 	if (!PlayerState)
 		return;
 
-	std::cout << "handlestartingnewpla;yer!\n";
+	// std::cout << "handlestartingnewpla;yer!\n";
 
 	NewPlayer->bHasServerFinishedLoading = true;
 	NewPlayer->OnRep_bHasServerFinishedLoading();
@@ -1436,7 +1435,7 @@ void HandleStartingNewPlayerHook(AFortGameModeAthena* GameMode, AFortPlayerContr
 		if (!ItemDef)
 			continue;
 
-		std::cout << std::format("[{}] {}\n", i, ItemDef->GetFullName());
+		// std::cout << std::format("[{}] {}\n", i, ItemDef->GetFullName());
 
 		GiveItem(NewPlayer, StartingItem.Item, StartingItem.Count);
 	}
@@ -1453,7 +1452,7 @@ void HandleStartingNewPlayerHook(AFortGameModeAthena* GameMode, AFortPlayerContr
 			if (!ItemDef)
 				continue;
 
-			std::cout << std::format("[{}] {}\n", i, ItemDef->GetFullName());
+			// std::cout << std::format("[{}] {}\n", i, ItemDef->GetFullName());
 
 			GiveItem(NewPlayer, StartingItem.Item, StartingItem.Count);
 		}
@@ -1556,10 +1555,10 @@ void HandleStartingNewPlayerHook(AFortGameModeAthena* GameMode, AFortPlayerContr
 
 	if (PlayerState->PlayerTeam)
 	{
-		std::cout << "SquadId Before: " << (int)PlayerState->SquadId << '\n';
+		/* std::cout << "SquadId Before: " << (int)PlayerState->SquadId << '\n';
 		std::cout << "PlayerState->PlayerTeam->TeamMembers.Num() Before: " << (int)PlayerState->PlayerTeam->TeamMembers.Num() << '\n';
 		std::cout << "TeamIndex Before: " << (int)PlayerState->TeamIndex << '\n';
-		std::cout << "PlayerTeam->Team Before: " << (int)PlayerState->PlayerTeam->Team << '\n';
+		std::cout << "PlayerTeam->Team Before: " << (int)PlayerState->PlayerTeam->Team << '\n'; */
 
 		/*
 		static int NextTeamIndex = 3;
@@ -1596,6 +1595,7 @@ void HandleStartingNewPlayerHook(AFortGameModeAthena* GameMode, AFortPlayerContr
 	// GameState->PlayersLeft++;
 	GameState->OnRep_PlayersLeft();
 	
+	/*
 	std::cout << "AthenaProfile: " << NewPlayer->AthenaProfile << '\n';
 	std::cout << "MetadataProfile: " << NewPlayer->MetadataProfile << '\n';
 	std::cout << "MainMcpProfile: " << NewPlayer->MainMcpProfile << '\n';
@@ -1607,6 +1607,7 @@ void HandleStartingNewPlayerHook(AFortGameModeAthena* GameMode, AFortPlayerContr
 		std::cout << "GetRegisteredPlayerInfo()->CreativeModeProfile: " << NewPlayer->GetRegisteredPlayerInfo()->CreativeModeProfile << '\n';
 
 	std::cout << "SKIDD: " << NewPlayer->GetRegisteredPlayerInfo() << '\n';
+	*/
 
 	if (Globals::bCreative && !PlayerState->bIsSpectator)
 	{
@@ -1644,8 +1645,8 @@ void HandleStartingNewPlayerHook(AFortGameModeAthena* GameMode, AFortPlayerContr
 		NewPlayer->CreativePlotLinkedVolume = Portal->LinkedVolume;
 		NewPlayer->OnRep_CreativePlotLinkedVolume();
 
-		std::cout << "volume state: " << (int)NewPlayer->CreativePlotLinkedVolume->VolumeState << '\n';
-		std::cout << "volume type: " << (int)NewPlayer->CreativePlotLinkedVolume->GetFortVolumeType() << '\n';
+		// std::cout << "volume state: " << (int)NewPlayer->CreativePlotLinkedVolume->VolumeState << '\n';
+		// std::cout << "volume type: " << (int)NewPlayer->CreativePlotLinkedVolume->GetFortVolumeType() << '\n';
 
 		NewPlayer->CreativePlotLinkedVolume->bNeverAllowSaving = false;
 		NewPlayer->CreativePlotLinkedVolume->VolumeState = EVolumeState::Ready;
@@ -1658,7 +1659,7 @@ void HandleStartingNewPlayerHook(AFortGameModeAthena* GameMode, AFortPlayerContr
 		auto VolumeManager = GameState->VolumeManager;
 		auto& VolumeObjects = VolumeManager->VolumeObjects;
 
-		std::cout << "VolumeObjects Num: " << VolumeObjects.Num() << '\n';
+		// std::cout << "VolumeObjects Num: " << VolumeObjects.Num() << '\n';
 
 		// VolumeObjects.Add(NewPlayer->CreativePlotLinkedVolume);
 
@@ -1678,7 +1679,7 @@ void HandleStartingNewPlayerHook(AFortGameModeAthena* GameMode, AFortPlayerContr
 
 				auto LevelSaveComponent = (UFortLevelSaveComponent*)NewPlayer->CreativePlotLinkedVolume->GetComponentByClass(UFortLevelSaveComponent::StaticClass());
 
-				std::cout << "LevelSaveComponent: " << LevelSaveComponent << '\n';
+				// std::cout << "LevelSaveComponent: " << LevelSaveComponent << '\n';
 
 				if (LevelSaveComponent)
 				{
@@ -1690,12 +1691,12 @@ void HandleStartingNewPlayerHook(AFortGameModeAthena* GameMode, AFortPlayerContr
 					// LevelSaveComponent->LoadedPlot = (UFortCreativeRealEstatePlotItem*)LevelSaveComponent->RestrictedPlotDefinition->CreateTemporaryItemInstanceBP(1, 1);
 					LevelSaveComponent->bAutoLoadFromRestrictedPlotDefinition = true;
 
-					std::cout << "LevelSaveComponent->LoadedPlot: " << LevelSaveComponent->LoadedPlot << '\n';
-					std::cout << "LevelSaveComponent->bAutoLoadFromRestrictedPlotDefinition: " << LevelSaveComponent->bAutoLoadFromRestrictedPlotDefinition << '\n';
+					// std::cout << "LevelSaveComponent->LoadedPlot: " << LevelSaveComponent->LoadedPlot << '\n';
+					// std::cout << "LevelSaveComponent->bAutoLoadFromRestrictedPlotDefinition: " << LevelSaveComponent->bAutoLoadFromRestrictedPlotDefinition << '\n';
 
 					if (LevelSaveComponent->LoadedPlot)
 					{
-						std::cout << "LevelSaveComponent->LoadedPlot Name: " << LevelSaveComponent->LoadedPlot->GetFullName() << '\n';
+						// std::cout << "LevelSaveComponent->LoadedPlot Name: " << LevelSaveComponent->LoadedPlot->GetFullName() << '\n';
 						LevelSaveComponent->LoadedPlot->IslandCode = L"4949-4949-4949";
 						LevelSaveComponent->LoadedPlot->IslandTitle = L"BIG SKIDDERS";
 					}
@@ -1709,7 +1710,7 @@ void HandleStartingNewPlayerHook(AFortGameModeAthena* GameMode, AFortPlayerContr
 			ShowPlayset(IslandPlayset, NewPlayer->CreativePlotLinkedVolume, NewPlayer);
 		}
 
-		std::cout << "is owner: " << NewPlayer->OwnsIslandVolume(NewPlayer->CreativePlotLinkedVolume) << '\n';
+		// std::cout << "is owner: " << NewPlayer->OwnsIslandVolume(NewPlayer->CreativePlotLinkedVolume) << '\n';
 
 		// FCreativeIslandData IslandData;
 		// NewPlayer->CreativeIslands.Add(IslandData);
@@ -1720,10 +1721,10 @@ void HandleStartingNewPlayerHook(AFortGameModeAthena* GameMode, AFortPlayerContr
 
 bool TeleportPlayerToLinkedVolumeHook(UObject* Object, UFunction*, void* Parameters)
 {
-	std::cout << "ada\n";
+	// std::cout << "ada\n";
 	auto Portal = (AFortAthenaCreativePortal*)Object;
 
-	std::cout << "Portal->LinkedVolume: " << Portal->LinkedVolume << '\n';
+	// std::cout << "Portal->LinkedVolume: " << Portal->LinkedVolume << '\n';
 
 	if (!Portal->LinkedVolume)
 		return false;
@@ -1752,7 +1753,7 @@ void ServerChoosePartHook(AFortPlayerPawn* Pawn, TEnumAsByte<EFortCustomPartType
 		return;
 	}
 
-	std::cout << std::format("scp: 0x{:x}\n", __int64(_ReturnAddress()) - __int64(GetModuleHandleW(0)));
+	// std::cout << std::format("scp: 0x{:x}\n", __int64(_ReturnAddress()) - __int64(GetModuleHandleW(0)));
 
 	return ServerChoosePartOriginal(Pawn, Part, ChosenCharacterPart);
 }
@@ -1761,13 +1762,13 @@ void (*ServerLoadingScreenDropped)(AFortPlayerControllerAthena* PlayerController
 
 void ServerLoadingScreenDroppedHook(AFortPlayerControllerAthena* PlayerController)
 {	
-	std::cout << "lsdropped!\n";
+	// std::cout << "lsdropped!\n";
 
 	// static FFortAthenaLoadout (*GetLoadout)(UFortMcpProfileAthena* AthenaProfile, char a2) = decltype(GetLoadout)(__int64(GetModuleHandleW(0)) + 0x1F15AB0);
 
 	auto Loadout = PlayerController->CosmeticLoadoutPC; // GetLoadout(PlayerController->AthenaProfile, false);
 
-	std::cout << "Loadout.Backpack: " << Loadout.Backpack << '\n';
+	// std::cout << "Loadout.Backpack: " << Loadout.Backpack << '\n';
 
 	if (Loadout.Backpack)
 	{
@@ -1793,7 +1794,7 @@ void ServerLoadingScreenDroppedHook(AFortPlayerControllerAthena* PlayerControlle
 	{
 		static auto OtherRiftClass = UObject::FindObject<UBlueprintGeneratedClass>("/Game/Playgrounds/Items/BGA_IslandPortal.BGA_IslandPortal_C");
 
-		std::cout << "OtherRiftClass: " << OtherRiftClass << '\n';
+		// std::cout << "OtherRiftClass: " << OtherRiftClass << '\n';
 
 		if (OtherRiftClass && MyFortPawn)
 		{
@@ -1818,14 +1819,14 @@ void ServerSetInAircraftHook(AFortPlayerStateAthena* PlayerState, bool bNewInAir
 	if (!PlayerController)
 		return;
 
-	std::cout << "bNewInAircraft: " << bNewInAircraft << '\n';
-	std::cout << "PlayerController->IsInAircraft(): " << PlayerController->IsInAircraft() << '\n';
+	// std::cout << "bNewInAircraft: " << bNewInAircraft << '\n';
+	// std::cout << "PlayerController->IsInAircraft(): " << PlayerController->IsInAircraft() << '\n';
 
 	auto& InventoryList = PlayerController->WorldInventory->Inventory;
 
 	if ((/* (bNewInAircraft && !PlayerController->IsInAircraft()) || */ (Globals::bLateGame ? bNewInAircraft : true)) && InventoryList.ItemInstances.Num())
 	{
-		std::cout << "InventoryList.ItemInstances.Num(): " << InventoryList.ItemInstances.Num() << '\n';
+		// std::cout << "InventoryList.ItemInstances.Num(): " << InventoryList.ItemInstances.Num() << '\n';
 
 		for (int i = 0; i < InventoryList.ItemInstances.Num(); i++)
 		{
@@ -1836,7 +1837,7 @@ void ServerSetInAircraftHook(AFortPlayerStateAthena* PlayerState, bool bNewInAir
 			}
 		}
 
-		std::cout << "InventoryList.ReplicatedEntries.Num(): " << InventoryList.ReplicatedEntries.Num() << '\n';
+		// std::cout << "InventoryList.ReplicatedEntries.Num(): " << InventoryList.ReplicatedEntries.Num() << '\n';
 
 		for (int i = 0; i < InventoryList.ReplicatedEntries.Num(); i++)
 		{
@@ -1915,7 +1916,7 @@ bool ServerMoveHook(UObject* Object, UFunction*, void* Parameters)
 	bool bTeleport = true; // false not proper!!!
 	bool bSweep = false;
 	
-	std::cout << std::format("X: {} Y: {} Z: {} W: {}\n", InState.Rotation.X, InState.Rotation.Y, InState.Rotation.Z, InState.Rotation.W);
+	// std::cout << std::format("X: {} Y: {} Z: {} W: {}\n", InState.Rotation.X, InState.Rotation.Y, InState.Rotation.Z, InState.Rotation.W);
 
 	// Mesh->K2_SetRelativeLocation(Transform.Translation, bSweep, bTeleport, nullptr);
 	// PhysicsPawn->K2_SetActorLocation(Transform.Translation, bSweep, bTeleport, nullptr);
@@ -2003,7 +2004,7 @@ static void ServerExecuteInventoryItemHook(AFortPlayerControllerAthena* PlayerCo
 
 	auto ItemDef = ReplicatedEntry->ItemDefinition;
 
-	std::cout << "ItemDef: " << ItemDef->GetFullName() << '\n';
+	// std::cout << "ItemDef: " << ItemDef->GetFullName() << '\n';
 
 	if (UFortGadgetItemDefinition* GadgetDef = Cast<UFortGadgetItemDefinition>(ItemDef))
 	{
@@ -2061,10 +2062,10 @@ static bool OnEndAbilityHook(UObject* Object, UFunction*, void* Parameters)
 
 		auto owner = C4Actor->GetOwner();
 
-		std::cout << "owner: " << owner << '\n';
+		// std::cout << "owner: " << owner << '\n';
 
-		if (owner)
-			std::cout << "owner: " << owner->GetFullName() << '\n';
+		// if (owner)
+			// std::cout << "owner: " << owner->GetFullName() << '\n';
 
 		auto ActivatingPawn = Cast<AFortPlayerPawn>(owner);
 
@@ -2088,7 +2089,7 @@ static bool OnEndAbilityHook(UObject* Object, UFunction*, void* Parameters)
 
 		if (C4 && C4->ItemEntry.Count <= 0)
 		{
-			std::cout << "C4 Count: " << C4->ItemEntry.Count << '\n';
+			// std::cout << "C4 Count: " << C4->ItemEntry.Count << '\n';
 
 			RemoveItem(Controller, C4->ItemEntry.ItemGuid, 1);
 			Update(Controller);
@@ -2100,14 +2101,14 @@ static bool OnEndAbilityHook(UObject* Object, UFunction*, void* Parameters)
 		auto ActivatingPawn = FortGameplayAbility->GetActivatingPawn();
 		auto Avatar = Cast<ABuildingGameplayActorC4>(FortGameplayAbility->GetAvatarActorFromActorInfo());
 
-		std::cout << "Avatar: " << Avatar << '\n';
+		// std::cout << "Avatar: " << Avatar << '\n';
 
 		if (Avatar)
 		{
-			std::cout << "Avatar Name: " << Avatar->GetFullName() << '\n';
+			// std::cout << "Avatar Name: " << Avatar->GetFullName() << '\n';
 		}
 
-		std::cout << "ActivatingPawn: " << ActivatingPawn << '\n';
+		// std::cout << "ActivatingPawn: " << ActivatingPawn << '\n';
 
 		if (!ActivatingPawn)
 			return false;
@@ -2177,7 +2178,7 @@ bool ServerSetPlaysetHook(UObject* Object, UFunction*, void* Parameters)
 
 	PlayerController->CurrentPlayset = Params->NewPlayset;
 
-	std::cout << "AAakjejq!\n";
+	// std::cout << "AAakjejq!\n";
 
 	return false;
 }
@@ -2191,27 +2192,27 @@ bool NotifyAbilityToSpawnToyHook(UObject* Object, UFunction*, void* Parameters)
 
 	auto GameplayAbility = Cast<UFortGameplayAbility>(Object);
 
-	std::cout << "GameplayAbility: " << GameplayAbility << '\n';
+	// std::cout << "GameplayAbility: " << GameplayAbility << '\n';
 
 	if (GameplayAbility)
 	{
 		auto Pawn = GameplayAbility->GetActivatingPawn();
 
-		std::cout << "Pawn: " << Pawn << '\n';
+		// std::cout << "Pawn: " << Pawn << '\n';
 
 		if (Pawn)
 		{
 			auto ToyItemDefinition = Cast<UAthenaToyItemDefinition>(Pawn->LastEmoteItemDef);
 
-			std::cout << "ToyItemDefinition: " << ToyItemDefinition << '\n';
+			// std::cout << "ToyItemDefinition: " << ToyItemDefinition << '\n';
 
 			if (ToyItemDefinition)
 			{
 				auto ASsEPt = ToyItemDefinition->ToyActorClass.ObjectID.AssetPathName.ToString();
-				std::cout << "ASsEPt: " << ASsEPt << '\n';
+				// std::cout << "ASsEPt: " << ASsEPt << '\n';
 				auto ToyAcTORKSID = UObject::FindObject<UBlueprintGeneratedClass>(ASsEPt);
 
-				std::cout << "ToyAcTORKSID: " << ToyAcTORKSID << '\n';
+				// std::cout << "ToyAcTORKSID: " << ToyAcTORKSID << '\n';
 
 				if (ToyAcTORKSID)
 				{
@@ -2219,7 +2220,7 @@ bool NotifyAbilityToSpawnToyHook(UObject* Object, UFunction*, void* Parameters)
 
 					auto TOYBOZO = GetWorld()->SpawnActor<AActor>(Params->DesiredLocation.Translation, Rotator(Params->DesiredLocation.Rotation), ToyAcTORKSID);
 					TOYBOZO->SetOwner(Controller); // ?
-					std::cout << "TOYBOZO: " << TOYBOZO << '\n';
+					// std::cout << "TOYBOZO: " << TOYBOZO << '\n';
 					// MakeBallDormant
 
 					static auto PhysicsBallMasterClass = UObject::FindObject<UBlueprintGeneratedClass>("/Game/Building/ActorBlueprints/Prop/PhysicsBall_Master.PhysicsBall_Master_C");
@@ -2228,7 +2229,7 @@ bool NotifyAbilityToSpawnToyHook(UObject* Object, UFunction*, void* Parameters)
 					{
 						if (TOYBOZO->IsA(PhysicsBallMasterClass))
 						{
-							std::cout << "AA!agjqu243g!\n";
+							// std::cout << "AA!agjqu243g!\n";
 							static auto funcaf = UObject::FindObject<UFunction>("/Game/Building/ActorBlueprints/Prop/PhysicsBall_Master.PhysicsBall_Master_C.MakeBallDormant");
 							TOYBOZO->ProcessEvent(funcaf, nullptr);
 						}
@@ -2266,21 +2267,23 @@ void ServerPlayEmoteItemHook(AFortPlayerController* PlayerController, UFortMonta
 	else if (auto ToyEmoteAsset = Cast<UAthenaToyItemDefinition>(EmoteAsset))
 	{
 		auto AssetPathNameStr = ToyEmoteAsset->ToySpawnAbility.ObjectID.AssetPathName.ToString();
-		std::cout << "AA: " << AssetPathNameStr << '\n';
+		// std::cout << "AA: " << AssetPathNameStr << '\n';
 		/* AbilityToUse = */ auto skidda = UObject::FindObject<UBlueprintGeneratedClass>(AssetPathNameStr); // ToyEmoteAsset->ToySpawnAbility.Get();
-		std::cout << "skidda: " << skidda << '\n';
+		// std::cout << "skidda: " << skidda << '\n';
 
 		if (skidda)
 			AbilityToUse = (UGameplayAbility*)skidda->CreateDefaultObject();
 
-		std::cout << "AbilityToUse: " << AbilityToUse << '\n';
+		// std::cout << "AbilityToUse: " << AbilityToUse << '\n';
 
 		if (AbilityToUse)
-			std::cout << "10 band: " << AbilityToUse->GetFullName() << '\n';
+		{
+			// std::cout << "10 band: " << AbilityToUse->GetFullName() << '\n';
+		}
 
 		static auto SKIDD = UObject::FindObject<UFunction>("/Game/Abilities/Toys/Shared/GAB_ToyThrow_Base.GAB_ToyThrow_Base_C.NotifyAbilityToSpawnToy");
 
-		std::cout << "SKIDD: " << SKIDD << '\n';
+		// std::cout << "SKIDD: " << SKIDD << '\n';
 
 		if (SKIDD)
 		{
@@ -2346,9 +2349,9 @@ void ServerAttemptInteractHook(UFortControllerComponent_Interaction* Interaction
 	auto Controller = Cast<AFortPlayerControllerAthena>(InteractionComponent->GetOwner());
 	auto Pawn = Controller->MyFortPawn;
 
-	std::cout << "skidded!\n";
+	// std::cout << "skidded!\n";
 
-	std::cout << "ReceivingActor: " << ReceivingActor->GetFullName() << '\n';
+	// std::cout << "ReceivingActor: " << ReceivingActor->GetFullName() << '\n';
 
 	static auto BatarangClass = UObject::FindObject<UBlueprintGeneratedClass>("/Game/Athena/Items/Weapons/Prototype/Badger_Bangs/BGA_Athena_BadgerBangsStuck.BGA_Athena_BadgerBangsStuck_C");
 
@@ -2365,7 +2368,7 @@ void ServerAttemptInteractHook(UFortControllerComponent_Interaction* Interaction
 	{
 		auto PlayerState = Cast<AFortPlayerStateAthena>(Chip->OwnerPlayerState);
 
-		std::cout << "AA PlayerState: " << PlayerState << '\n';
+		// std::cout << "AA PlayerState: " << PlayerState << '\n';
 		auto PlayerTeam = PlayerState->PlayerTeam;
 
 		std::unordered_set<AFortPlayerControllerAthena*> TeamMembers;
@@ -2406,7 +2409,7 @@ void ServerAttemptInteractHook(UFortControllerComponent_Interaction* Interaction
 	{
 		auto CurrentMaterial = ItemCollector->ActiveInputItem; // InteractType->OptionalObjectData
 
-		std::cout << "CurrentMaterial: " << CurrentMaterial << '\n';
+		// std::cout << "CurrentMaterial: " << CurrentMaterial << '\n';
 
 		if (!CurrentMaterial)
 			return;
@@ -2460,13 +2463,13 @@ void ServerAttemptInteractHook(UFortControllerComponent_Interaction* Interaction
 			SetMovementMode(CharacterMovement, EMovementMode::MOVE_Custom, EFortCustomMovement::Passenger);
 		} */
 
-		std::cout << "Pawn->VehicleStateLocal.Vehicle: " << Pawn->VehicleStateLocal.Vehicle << '\n';
+		/* std::cout << "Pawn->VehicleStateLocal.Vehicle: " << Pawn->VehicleStateLocal.Vehicle << '\n';
 		std::cout << "Pawn->VehicleStateLocal.SeatIndex: " << (int)Pawn->VehicleStateLocal.SeatIndex << '\n';
 
 		std::cout << "Pawn->CharacterMovement->CustomMovementMode: " << (int)Pawn->CharacterMovement->CustomMovementMode << '\n';
 
 		std::cout << "Pawn->VehicleStateRep.Vehicle: " << Pawn->VehicleStateRep.Vehicle << '\n';
-		std::cout << "Pawn->VehicleStateRep.SeatIndex: " << (int)Pawn->VehicleStateRep.SeatIndex << '\n';
+		std::cout << "Pawn->VehicleStateRep.SeatIndex: " << (int)Pawn->VehicleStateRep.SeatIndex << '\n'; */
 
 		int SeatIndex = Vehicle->FindSeatIndex(Pawn);
 
@@ -2496,7 +2499,7 @@ void ServerAttemptInteractHook(UFortControllerComponent_Interaction* Interaction
 
 					if (VehicleWeaponDef)
 					{
-						std::cout << "VehicleWeaponDef: " << VehicleWeaponDef->GetFullName() << '\n';
+						// std::cout << "VehicleWeaponDef: " << VehicleWeaponDef->GetFullName() << '\n';
 						int Ammo = 10000; // INT32_MAX - 1;
 						
 						auto VehicleInstance = GiveItem(Controller, VehicleWeaponDef, 1, GetClipSize(VehicleWeaponDef));
@@ -2611,7 +2614,7 @@ void ServerAttemptInteractHook(UFortControllerComponent_Interaction* Interaction
 
 		// if (!ReviveSpec)
 		{
-			std::cout << "Didnt find2!\n";
+			// std::cout << "Didnt find2!\n";
 
 			DBNOPawn->bIsDBNO = false;
 			DBNOPawn->OnRep_IsDBNO();
@@ -2651,7 +2654,7 @@ static char (*INTOTHETHICKOFIT)(__int64 a1, void* a2, int a3, char a4, char a5) 
 
 char __fastcall INTOTHETHICKOFITHOOK(__int64 a1, FGuid ItemGuid, int Count, bool bForceRemoveFromQuickBars, bool bForceRemoval) // serverremoveisw4wg
 {
-	std::cout << std::format("RETURNRR: 0x{:x}\n", __int64(_ReturnAddress()) - __int64(GetModuleHandleW(0)));
+	// std::cout << std::format("RETURNRR: 0x{:x}\n", __int64(_ReturnAddress()) - __int64(GetModuleHandleW(0)));
 	return true;
 
 	if (!a1)
@@ -2728,7 +2731,7 @@ char GetSquadIdForCurrentPlayerHook(AFortGameSessionDedicatedAthena* GameSession
 
 		if (PlayerState && AFortPlayerState::AreUniqueIDsIdentical(Controller->PlayerState->UniqueId, UniqueId))
 		{
-			std::cout << "FOUND!\n";
+			// std::cout << "FOUND!\n";
 			return PlayerState->TeamIndex - 2;
 		}
 	}
@@ -2783,7 +2786,7 @@ void ClientOnPawnDiedHook(AFortPlayerControllerAthena* DeadPlayerController, FFo
 
 	if (DeadPlayerController && DeadPlayerState)
 	{
-		std::cout << "bIsDBNO: " << (int)DeadPawn->bIsDBNO << '\n';
+		// std::cout << "bIsDBNO: " << (int)DeadPawn->bIsDBNO << '\n';
 
 		FDeathInfo DeathInfo;
 		DeathInfo.bDBNO = DeadPawn->bIsDBNO; // DeadPawn->bWasDBNOOnDeath; // bad
@@ -2843,7 +2846,7 @@ void ClientOnPawnDiedHook(AFortPlayerControllerAthena* DeadPlayerController, FFo
 			}
 		}
 
-		std::cout << "UFortKismetLibrary::GetActorTeam(Pawn): " << (int)UFortKismetLibrary::GetActorTeam(DeadPawn) << '\n';
+		// std::cout << "UFortKismetLibrary::GetActorTeam(Pawn): " << (int)UFortKismetLibrary::GetActorTeam(DeadPawn) << '\n';
 		// std::cout << "IsRessurrewivcwigw4giujogj: " << GameState->IsResurrectionEnabled(DeadPawn) << '\n';
 		// std::cout << "DefaultRebootMachineHotfix: " << GameState->DefaultRebootMachineHotfix << '\n';
 
@@ -2866,7 +2869,7 @@ void ClientOnPawnDiedHook(AFortPlayerControllerAthena* DeadPlayerController, FFo
 			{
 				auto DroppableItems = GetDroppableItems(DeadPlayerController, nullptr, true);
 
-				std::cout << "DroppableItems.size(): " << DroppableItems.size() << '\n';
+				// std::cout << "DroppableItems.size(): " << DroppableItems.size() << '\n';
 
 				for (int i = 0; i < DroppableItems.size(); i++)
 				{
@@ -2994,7 +2997,7 @@ char BuildingDamageHook(ABuildingActor* BuildingActor, float DamageIg, FGameplay
 
 	auto Damage = fmaxf(DamageIg, 0.0f);
 
-	std::cout << std::format("ONDAMAGE: 0x{:x}\n", __int64(_ReturnAddress()) - __int64(GetModuleHandleW(0)));
+	// std::cout << std::format("ONDAMAGE: 0x{:x}\n", __int64(_ReturnAddress()) - __int64(GetModuleHandleW(0)));
 
 	if (Weapon->WeaponData && Cast<UFortWeaponMeleeItemDefinition>(Weapon->WeaponData))
 	{
@@ -3226,7 +3229,8 @@ void ServerAddMapMarkerHook(UAthenaMarkerComponent* MarkerComponent, FFortClient
 		MarkerData.MarkedActorClass.WeakPtr.ObjectSerialNumber = 0;
 
 		char (*WtfSkidda)(UAthenaMarkerComponent * a1, AActor * a2, FFortWorldMarkerData & MarkerData) = decltype(WtfSkidda)(__int64(GetModuleHandleW(0)) + 0x1297E00);
-		std::cout << "WtfSkidda: " << (int)WtfSkidda(PlayerController->MarkerComponent, MarkerRequest.MarkedActor, MarkerData) << '\n';
+		(int)WtfSkidda(PlayerController->MarkerComponent, MarkerRequest.MarkedActor, MarkerData);
+		// std::cout << "WtfSkidda: " << (int)WtfSkidda(PlayerController->MarkerComponent, MarkerRequest.MarkedActor, MarkerData) << '\n';
 	}
 
 	if (MarkerData.MarkerType == EFortWorldMarkerType::Item)
@@ -3252,7 +3256,7 @@ void ServerAddMapMarkerHook(UAthenaMarkerComponent* MarkerComponent, FFortClient
 
 		auto CurrentTeamMemberMarkerComponent = CurrentTeamMemberPC->MarkerComponent;// (UAthenaMarkerComponent*)CurrentTeamMemberPC->GetComponentByClass(UAthenaMarkerComponent::StaticClass());
 
-		std::cout << "CurrentTeamMemberMarkerComponent: " << CurrentTeamMemberMarkerComponent << '\n';
+		// std::cout << "CurrentTeamMemberMarkerComponent: " << CurrentTeamMemberMarkerComponent << '\n';
 
 		if (!CurrentTeamMemberMarkerComponent)
 			continue;
@@ -3280,7 +3284,7 @@ void ServerSetTeamHook(AFortPlayerControllerAthena* Controller, unsigned char In
 		!PlayerState || !Controller->MyFortPawn || CurrentPlaylist->DefaultFirstTeam > InTeam || CurrentPlaylist->DefaultLastTeam < InTeam)
 		return;
 
-	std::cout << "InTeam: " << (int)InTeam << '\n';
+	// std::cout << "InTeam: " << (int)InTeam << '\n';
 
 	auto OldTeam = PlayerState->TeamIndex;
 
@@ -3331,8 +3335,8 @@ void ServerRepairBuildingActorHook(AFortPlayerController* PlayerController, ABui
 
 		// auto aa = getreoarcaski(PlayerController, BuildingActorToRepair, 0);
 
-	std::cout << "BuildingActorToRepair: " << BuildingActorToRepair << '\n';
-	std::cout << "BuildingActorToRepair Name: " << BuildingActorToRepair->GetFullName() << '\n';
+	// std::cout << "BuildingActorToRepair: " << BuildingActorToRepair << '\n';
+	// std::cout << "BuildingActorToRepair Name: " << BuildingActorToRepair->GetFullName() << '\n';
 
 	auto add = BuildingActorToRepair->VFT[0xBF0 / 8];
 
@@ -3340,7 +3344,7 @@ void ServerRepairBuildingActorHook(AFortPlayerController* PlayerController, ABui
 
 	auto aa = flawlessyeah(BuildingActorToRepair, PlayerController);
 
-	std::cout << "cost: " << aa << '\n';
+	// std::cout << "cost: " << aa << '\n';
 
 	auto ResourceItem = UFortKismetLibrary::K2_GetResourceItemDefinition(BuildingActorToRepair->ResourceType);
 
@@ -3377,12 +3381,12 @@ void ServerRepairBuildingActorHook(AFortPlayerController* PlayerController, ABui
 	UDataTableFunctionLibrary::EvaluateCurveTableRow(BuildingRepairCostMultiplierHandle.CurveTable,
 		BuildingRepairCostMultiplierHandle.RowName, x, L"", &test2, &test);
 
-	std::cout << "test: " << test << '\n';
+	// std::cout << "test: " << test << '\n';
 	// std::cout << "skidD: " << test / BuildingActorToRepair->GetHealth() << '\n'; // BuildingActorToRepair->GetMaxHealth() / DamageThatWillAffect
 
-	std::cout << "v12: " << v12 << '\n';
+	// std::cout << "v12: " << v12 << '\n';
 	float skid = (float)(BuildingCost * v12) * test;
-	std::cout << "skid: " << skid << '\n';
+	// std::cout << "skid: " << skid << '\n';
 }
 
 void ServerHandlePickupHook(AFortPlayerPawn* Pawn, AFortPickup* Pickup, float InFlyTime, FVector InStartDirection, bool bPlayPickupSound)
@@ -3460,7 +3464,7 @@ void ServerTeleportToPlaygroundLobbyIslandHook(AFortPlayerControllerAthena* Play
 	if (!Globals::bCreative)
 		return;
 
-	std::cout << "ba!\n";
+	// std::cout << "ba!\n";
 
 	auto Pawn = PlayerController->MyFortPawn;
 
@@ -3468,17 +3472,17 @@ void ServerTeleportToPlaygroundLobbyIslandHook(AFortPlayerControllerAthena* Play
 	{
 		auto RandomPlayerStart = GetRandomObjectOfClass<AFortPlayerStartCreative>(false, false);
 
-		std::cout << "RandomPlayerStart: " << RandomPlayerStart << '\n';
+		// std::cout << "RandomPlayerStart: " << RandomPlayerStart << '\n';
 
 		if (!RandomPlayerStart)
 			return;
 
 		auto aaaa = RandomPlayerStart->PlayerStartTags.Contains("Playground.LobbyIsland.Spawn");
 
-		std::cout << "aaaa: " << aaaa << '\n';
-		std::cout << "RandomPlayerStart->PlayerStartTags.ToStringSimple(true): " << RandomPlayerStart->PlayerStartTags.ToStringSimple(true) << '\n';
-		std::cout << "RandomPlayerStart->CreativeLinkComponent: " << RandomPlayerStart->CreativeLinkComponent << '\n';
-		std::cout << "RandomPlayerStart->bUseAsIslandStart: " << RandomPlayerStart->bUseAsIslandStart << '\n';
+		// std::cout << "aaaa: " << aaaa << '\n';
+		// std::cout << "RandomPlayerStart->PlayerStartTags.ToStringSimple(true): " << RandomPlayerStart->PlayerStartTags.ToStringSimple(true) << '\n';
+		// std::cout << "RandomPlayerStart->CreativeLinkComponent: " << RandomPlayerStart->CreativeLinkComponent << '\n';
+		// std::cout << "RandomPlayerStart->bUseAsIslandStart: " << RandomPlayerStart->bUseAsIslandStart << '\n';
 
 		if (!aaaa)
 			return ServerTeleportToPlaygroundLobbyIslandHook(PlayerController);
@@ -3513,7 +3517,7 @@ static void ServerAttemptInventoryDropHook(AFortPlayerControllerAthena* PlayerCo
 
 		// ItemEntry->StateValues.Free();
 
-		std::cout << "WeaponList Before: " << Pawn->CurrentWeaponList.Num() << '\n';
+		// std::cout << "WeaponList Before: " << Pawn->CurrentWeaponList.Num() << '\n';
 
 		if (auto Pickup = SpawnPickup(*ItemEntry, Pawn->K2_GetActorLocation(), EFortPickupSourceTypeFlag::Player, EFortPickupSpawnSource::Unset, Pawn))
 		{
@@ -3527,7 +3531,7 @@ static void ServerAttemptInventoryDropHook(AFortPlayerControllerAthena* PlayerCo
 		if (bShouldUpdate)
 			Update(PlayerController);
 
-		std::cout << "WeaponList After: " << Pawn->CurrentWeaponList.Num() << '\n';
+		// std::cout << "WeaponList After: " << Pawn->CurrentWeaponList.Num() << '\n';
 	}
 }
 
@@ -3667,11 +3671,11 @@ __int64 PickTeamHook(AFortGameModeAthena* GameMode, unsigned __int8 preferredTea
 
 	static int NextTeamIndex = Playlist->DefaultFirstTeam;
 
-	std::cout << "CurrentTeamMembers: " << CurrentTeamMembers << '\n';
+	// std::cout << "CurrentTeamMembers: " << CurrentTeamMembers << '\n';
 
 	if (Globals::bPlayground || CurrentTeamMembers >= Playlist->MaxSquadSize)
 	{
-		std::cout << "Moving next team!\n";
+		// std::cout << "Moving next team!\n";
 
 		NextTeamIndex++;
 		CurrentTeamMembers = 0;
@@ -3907,12 +3911,12 @@ static void (*OnCapsuleBeginOverlapOriginal)(AFortPlayerPawn* Pawn, UPrimitiveCo
 
 void OnCapsuleBeginOverlapHook(AFortPlayerPawn* Pawn, UPrimitiveComponent* OverlappedComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, int OtherBodyIndex, bool bFromSweep, FHitResult SweepResult)
 {
-	std::cout << "aa!\n";
-	std::cout << "Other: " << OtherActor->GetFullName() << '\n';
+	// std::cout << "aa!\n";
+	// std::cout << "Other: " << OtherActor->GetFullName() << '\n';
 
 	if (auto Pickup = Cast<AFortPickup>(OtherActor))
 	{
-		std::cout << "b!\n";
+		// std::cout << "b!\n";
 
 		{
 			auto ItemDefinition = Pickup->PrimaryPickupItemEntry.ItemDefinition;
@@ -3953,8 +3957,8 @@ void OnCapsuleBeginOverlapHook(AFortPlayerPawn* Pawn, UPrimitiveComponent* Overl
 						return;
 				}
 
-				std::cout << "bCanStack: " << bCanStack << '\n';
-				std::cout << "bFoundStack: " << bFoundStack << '\n';
+				// std::cout << "bCanStack: " << bCanStack << '\n';
+				// std::cout << "bFoundStack: " << bFoundStack << '\n';
 
 				if (!bCanStack ? (!bFoundStack ? true : ItemDefinition->bAllowMultipleStacks) : true)
 					ServerHandlePickupHook(Pawn, Pickup, 0.4, FVector(), true);
@@ -4036,7 +4040,7 @@ char PickupDelayHook(AFortPickup* Pickup)
 
 	bool bForceOverflow = false;
 
-	std::cout << "ItemDef->MaxStackSize: " << ItemDef->MaxStackSize << '\n';
+	// std::cout << "ItemDef->MaxStackSize: " << ItemDef->MaxStackSize << '\n';
 
 	while (cpyCount > 0)
 	{
@@ -4054,7 +4058,7 @@ char PickupDelayHook(AFortPickup* Pickup)
 
 			if (ItemDefGoingInPrimary && IsPrimaryQuickbar(ItemInstance->ItemEntry.ItemDefinition))
 			{
-				std::cout << "Primary: " << ItemInstance->ItemEntry.ItemDefinition->GetName() << '\n';
+				// std::cout << "Primary: " << ItemInstance->ItemEntry.ItemDefinition->GetName() << '\n';
 				PrimarySlotsFilled++;
 			}
 
@@ -4064,13 +4068,13 @@ char PickupDelayHook(AFortPickup* Pickup)
 			{
 				if (ItemInstanceToSwap && ItemInstanceToSwap->CanBeDropped() && !bHasSwapped)
 				{
-					std::cout << "PrimarySlotsFilled: " << PrimarySlotsFilled << '\n';
+					// std::cout << "PrimarySlotsFilled: " << PrimarySlotsFilled << '\n';
 
-					std::cout << "Swapping!\n";
+					// std::cout << "Swapping!\n";
 
 					auto& ItemEntryToSwap = ItemInstanceToSwap->ItemEntry;
 
-					std::cout << "ItemEntryToSwap.LoadedAmmo: " << ItemEntryToSwap.LoadedAmmo << '\n';
+					// std::cout << "ItemEntryToSwap.LoadedAmmo: " << ItemEntryToSwap.LoadedAmmo << '\n';
 
 					auto SwappedPickup = SpawnPickup(ItemEntryToSwap, PawnLoc, EFortPickupSourceTypeFlag::Player, EFortPickupSpawnSource::Unset, Pawn);
 					RemoveItem(PlayerController, CurrentItemGuid, ItemEntryToSwap.Count);
@@ -4088,7 +4092,7 @@ char PickupDelayHook(AFortPickup* Pickup)
 				// if (ItemInstance->ItemEntry.Count >= ItemDef->MaxStackSize)
 					// continue; // Fully stacked
 
-				std::cout << "ItemInstance->ItemEntry.Count: " << ItemInstance->ItemEntry.Count << '\n';
+				// std::cout << "ItemInstance->ItemEntry.Count: " << ItemInstance->ItemEntry.Count << '\n';
 				// std::cout << "ItemDef->MaxStackSize: " << ItemDef->MaxStackSize << '\n';
 
 				if (ItemInstance->ItemEntry.Count < ItemDef->MaxStackSize)
@@ -4096,7 +4100,7 @@ char PickupDelayHook(AFortPickup* Pickup)
 					int OverStack = ItemInstance->ItemEntry.Count + cpyCount - ItemDef->MaxStackSize;
 					int AmountToStack = OverStack > 0 ? cpyCount - OverStack : cpyCount;
 
-					std::cout << "AmountToStack: " << AmountToStack << '\n';
+					// std::cout << "AmountToStack: " << AmountToStack << '\n';
 
 					cpyCount -= AmountToStack;
 
@@ -4115,14 +4119,14 @@ char PickupDelayHook(AFortPickup* Pickup)
 
 			if ((bIsInventoryFull || bForceOverflow) && cpyCount > 0)
 			{
-				std::cout << "PrimarySlotsFilled: " << PrimarySlotsFilled << '\n';
-				std::cout << "Spawning pickup due to overflow!\n";
+				// std::cout << "PrimarySlotsFilled: " << PrimarySlotsFilled << '\n';
+				// std::cout << "Spawning pickup due to overflow!\n";
 				FFortItemEntry PickupToSpawn{};
 				PickupToSpawn.ItemDefinition = ItemDef;
 				PickupToSpawn.Count = cpyCount > ItemDef->MaxStackSize ? ItemDef->MaxStackSize : cpyCount;
-				std::cout << "cpyCount: " << cpyCount << '\n';
+				// std::cout << "cpyCount: " << cpyCount << '\n';
 				SpawnPickup(PickupToSpawn, PawnLoc, EFortPickupSourceTypeFlag::Player, EFortPickupSpawnSource::Unset, Pawn);
-				std::cout << "PickupToSpawn.Count: " << PickupToSpawn.Count << '\n';
+				// std::cout << "PickupToSpawn.Count: " << PickupToSpawn.Count << '\n';
 				cpyCount -= PickupToSpawn.Count;
 				bForceOverflow = false;
 			}
@@ -4136,7 +4140,7 @@ char PickupDelayHook(AFortPickup* Pickup)
 		{
 			if (bDoesStackExist ? ItemDef->bAllowMultipleStacks : true)
 			{
-				std::cout << "Giving Item! cpycount: " << cpyCount << '\n';
+				// std::cout << "Giving Item! cpycount: " << cpyCount << '\n';
 				auto NewItem = CreateAndGiveItem(PlayerController, ItemDef, cpyCount > ItemDef->MaxStackSize ? ItemDef->MaxStackSize : cpyCount, CurrentPickup->PrimaryPickupItemEntry.LoadedAmmo, true);
 
 				if (NewItem)

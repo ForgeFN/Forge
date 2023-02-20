@@ -263,21 +263,7 @@ DWORD WINAPI GuiThread(LPVOID)
 
 				if (ImGui::Button("Start Aircraft"))
 				{
-					auto GameMode = Cast<AFortGameModeAthena>(GetWorld()->AuthorityGameMode);
-					auto GameState = Cast<AFortGameStateAthena>(GameMode->GameState);
-
-					float skid = 11.f;
-
-					float Duration = skid;
-					float EarlyDuration = skid;
-
-					auto TimeSeconds = UGameplayStatics::GetTimeSeconds(GetWorld());
-
-					GameState->WarmupCountdownEndTime = TimeSeconds + Duration;
-					GameMode->WarmupCountdownDuration = Duration;
-
-					GameState->WarmupCountdownStartTime = TimeSeconds;
-					GameMode->WarmupEarlyCountdownDuration = EarlyDuration;
+					StartAircraft();
 				}
 
 				/* if (ImGui::Button("Restart"))
