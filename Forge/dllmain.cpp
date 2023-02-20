@@ -101,6 +101,51 @@ DWORD WINAPI Main(LPVOID)
     CreateThread(0, 0, GuiThread, 0, 0, 0);
     // return 0;
 
+    auto matchmaking = Memcury::Scanner::FindPattern("83 BD ? ? ? ? 01 7F 18 49 8D 4D D8 48 8B D6 E8 ? ? ? ? 48").Get();
+
+    matchmaking = matchmaking ? matchmaking : Memcury::Scanner::FindPattern("83 7D 88 01 7F 0D 48 8B CE E8").Get();
+
+    std::cout << std::format("matchmaking: 0x{:x}\n", matchmaking - __int64(GetModuleHandleW(0)));
+    bool bMatchmakingSupported = matchmaking;
+
+    int idx = 0;
+
+    if (bMatchmakingSupported)
+    {
+        for (int i = 0; i < 9; i++)
+        {
+            auto byte = (uint8_t*)(matchmaking + i);
+
+            if (IsBadReadPtr(byte))
+                continue;
+
+            // std::cout << std::format("[{}] 0x{:x}\n", i, (int)*byte);
+
+            if (*byte == 0x7F)
+            {
+                bMatchmakingSupported = true;
+                idx = i;
+                break;
+            }
+
+            bMatchmakingSupported = false;
+        }
+    }
+
+
+    std::cout << "Matchmaking will " << (bMatchmakingSupported ? "be supported\n" : "not be supported\n");
+
+    if (bMatchmakingSupported)
+    {
+        std::cout << "idx: " << idx << '\n';
+
+        auto before = (uint8_t*)(matchmaking + idx);
+
+        std::cout << "before byte: " << (int)*before << '\n';
+
+        *before = 0x74;
+    }
+
     srand(time(0));
 
     CREATE_HOOK(rettrue, CollectGarbage);

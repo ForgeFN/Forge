@@ -407,7 +407,7 @@ namespace Globals
 	static inline bool bCreative = false; // Playlist->bEnableCreativeMode
 	static inline bool bLateGame = false;
 	static inline bool bMinimumPlayersToDropLS = 1;
-	static inline bool bPlayground = false;
+	static inline bool bPlayground = true;
 	static inline bool bRestarting = false;
 	static int AmountOfRestarts = 0;
 }
@@ -521,7 +521,7 @@ static void GiveFortAbilitySet(UAbilitySystemComponent* ASC, UFortAbilitySet* Fo
 
 static void GiveFortAbilitySet(AFortPlayerState* PlayerState, UFortAbilitySet* FortAbilitySet)
 {
-	auto ASIA = GetInterfaceInObjectFromStaticClass<UAbilitySystemInterface>(PlayerState);
+	auto ASIA = nullptr; // GetInterfaceInObjectFromStaticClass<UAbilitySystemInterface>(PlayerState);
 
 	std::cout << "ASIA: " << ASIA << '\n';
 

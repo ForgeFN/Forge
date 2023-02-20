@@ -224,6 +224,33 @@ void ServerCheatHook(AFortPlayerControllerAthena* PlayerController, FString Msg)
 		{
 			StartAircraft();
 		}
+		else if (Command == "giveperm")
+		{
+			if (!Globals::bCreative)
+			{
+				SendMessageToConsole(PlayerController, L"It is not creative!");
+				return;
+			}
+
+			auto Volume = ReceivingController->CreativePlotLinkedVolume;
+
+			if (!Volume)
+			{
+				SendMessageToConsole(PlayerController, L"No volume!");
+				return;
+			}
+
+			auto LevelSaveComponent = (UFortLevelSaveComponent*)Volume->GetComponentByClass(UFortLevelSaveComponent::StaticClass());
+
+			if (!LevelSaveComponent)
+			{
+				SendMessageToConsole(PlayerController, L"No level save component!");
+				return;
+			}
+
+			LevelSaveComponent->AccountIdOfOwner = FUniqueNetIdRepl();
+			SendMessageToConsole(PlayerController, L"Done!");
+		}
 #ifdef DEVELOPER_BUILD
 		else if (Command == "spawnbrute")
 		{
@@ -942,6 +969,7 @@ cheat demospeedserver <Speed=1.f> - Sets the server's speed/time dilation.
 cheat setpickaxe <ShortPickaxeName> - Changes the player's pickaxe to the new pickaxe.
 cheat op \PlayerName\ - Gives operator to this player's ip.
 cheat deop \PlayerName\ - Removes operator from this player's ip.
+cheat giveperm - This command lets everyone on the player's island to have permissions (fly, build, etc.).
 
 If you want to execute a command on a certain player, surround their name (case sensitive) with \, and put the param anywhere. Example: cheat sethealth \Milxnor\ 100
 )";
