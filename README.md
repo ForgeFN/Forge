@@ -1,7 +1,7 @@
 # Forge
-10.40 gameserver!!!!!!
+Fortnite gameserver for 10.40.
 
-what is new on here which isn't on any other public gs?:
+Main features:
 
 - proper looting
 - chest stars
@@ -18,12 +18,10 @@ what is new on here which isn't on any other public gs?:
 - repairing
 - s8+ map markers
 
-why did I release: bored
-
 ## Credits
 
-Zombie movement - Spooky
-Creative islands - Ender
+Zombie movement - Spooky<br>
+Creative Islands - Ender<br>
 
 # How to use the cheat commands
 
