@@ -683,7 +683,7 @@ bool ReadyToStartMatchHook(AFortGameModeAthena* GameMode)
 		ULevelStreamingDynamic::LoadLevelInstance(GetWorld(), L"/Game/Athena/Maps/Athena_Nav_Mall", { 0, 0, 3000 }, {}, &success);
 		ULevelStreamingDynamic::LoadLevelInstance(GetWorld(), L"/Game/Athena/Maps/Athena_Nav_Mall", { 0, 0, 3000 }, {}, &success);
 
-		GameMode->WarmupRequiredPlayerCount = Globals::bMinimumPlayersToDropLS;
+		GameMode->WarmupRequiredPlayerCount = 1; //  Globals::bMinimumPlayersToDropLS;
 
 		static char (*SpawnLoot)(ABuildingContainer* BuildingContainer, AFortPlayerPawnAthena* Pawn, int idk, int idk2) = decltype(SpawnLoot)(__int64(GetModuleHandleW(0)) + 0x13A91C0);
 		CREATE_HOOK(SpawnLootHook, SpawnLoot);
@@ -711,8 +711,11 @@ bool ReadyToStartMatchHook(AFortGameModeAthena* GameMode)
 			// UObject::FindObject<UAthenaBattleBusItemDefinition>("/Game/Athena/Items/Cosmetics/BattleBuses/BBID_WinterBus.BBID_WinterBus");
 			GetRandomObjectOfClass<UAthenaBattleBusItemDefinition>(false, false);
 
-		Cast<UFortAssetManager>(GEngine->AssetManager)->GameDataCosmetics->DefaultBattleBusSkin = BusDefinition;
-		GameState->DefaultBattleBus = BusDefinition;
+		if (BusDefinition)
+		{
+			Cast<UFortAssetManager>(GEngine->AssetManager)->GameDataCosmetics->DefaultBattleBusSkin = BusDefinition;
+			GameState->DefaultBattleBus = BusDefinition;
+		}
 
 		if (Globals::bLateGame)
 		{

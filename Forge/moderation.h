@@ -38,7 +38,7 @@ std::string GetFilePath()
 	return str;
 }
 
-void Ban(APlayerController* PlayerController)
+void Ban(APlayerController* PlayerController, const std::string& Name = "")
 {
 	std::ofstream stream(("banned-ips.json"), std::ios::app);
 
@@ -48,7 +48,7 @@ void Ban(APlayerController* PlayerController)
 	auto PlayerState = PlayerController->PlayerState;
 
 	auto IP = PlayerState->SavedNetworkAddress.ToString();
-	auto PlayerName = PlayerState->PlayerName.ToString();
+	auto PlayerName = Name.empty() ? PlayerState->PlayerName.ToString() : Name;
 
 	nlohmann::json j;
 	j["IP"] = IP;

@@ -45,6 +45,7 @@ static __forceinline UWorld* GetWorld()
 
 static UInterface* (*GetInterfaceInObjectFromStaticClassOriginal)(UObject* Object, UClass* a2) =
 	decltype(GetInterfaceInObjectFromStaticClassOriginal)(__int64(GetModuleHandleW(0)) + 0x22EC6A0);
+// ^ https://github.com/EpicGames/UnrealEngine/blob/cdaec5b33ea5d332e51eee4e4866495c90442122/Engine/Source/Runtime/CoreUObject/Private/UObject/UObjectBaseUtility.cpp#L530 MAYBE??
 
 template <typename InterfaceClass>
 static InterfaceClass* GetInterfaceInObjectFromStaticClass(UObject* Object)
@@ -406,8 +407,8 @@ namespace Globals
 	static inline bool bLogProcessEvent = false;
 	static inline bool bCreative = false; // Playlist->bEnableCreativeMode
 	static inline bool bLateGame = false;
-	static inline bool bMinimumPlayersToDropLS = 1;
-	static inline bool bPlayground = true;
+	// static inline bool bMinimumPlayersToDropLS = 1;
+	static inline bool bPlayground = false;
 	static inline bool bRestarting = false;
 	static int AmountOfRestarts = 0;
 }
@@ -476,6 +477,7 @@ static UFortPlaylistAthena* GetPlaylistToUse()
 			// UObject::FindObject<UFortPlaylistAthena>("/Game/Athena/Playlists/Trios/Playlist_Trios.Playlist_Trios")
 			// UObject::FindObject<UFortPlaylistAthena>("/Game/Athena/Playlists/Low/Playlist_Low_Solo.Playlist_Low_Solo")
 			// UObject::FindObject<UFortPlaylistAthena>("/Game/Athena/Playlists/Music/Playlist_Music_High.Playlist_Music_High")
+			// UObject::FindObject<UFortPlaylistAthena>("/Game/Athena/Playlists/Ashton/Playlist_Ashton_Lg.Playlist_Ashton_Lg")
 			);
 
 	return Playlist;

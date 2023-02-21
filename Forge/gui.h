@@ -365,14 +365,34 @@ DWORD WINAPI GuiThread(LPVOID)
 
 						if (PlayerState)
 						{
-							if (ImGui::Button("Ban"))
-							{
-								Ban(Controller);
-							}
+							auto RequestURL = (FString*)(__int64(Controller->NetConnection) + 0x1A8);
 
-							if (ImGui::Button("Back"))
+							if (RequestURL->Data && RequestURL->Num())
 							{
-								PlayerTab = -1;
+								auto RequestURLStr = RequestURL->ToString();
+
+								std::size_t pos = RequestURLStr.find("Name=");
+
+								if (pos != std::string::npos) {
+									std::size_t end_pos = RequestURLStr.find('?', pos);
+
+									if (end_pos != std::string::npos)
+										RequestURLStr = RequestURLStr.substr(pos + 5, end_pos - pos - 5);
+								}
+
+								auto RequestURLCStr = RequestURLStr.c_str();
+
+								ImGui::Text(("Viewing " + RequestURLStr).c_str());
+
+								if (ImGui::Button("Ban"))
+								{
+									Ban(Controller, RequestURLStr);
+								}
+
+								if (ImGui::Button("Back"))
+								{
+									PlayerTab = -1;
+								}
 							}
 						}
 						else
