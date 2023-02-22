@@ -152,7 +152,7 @@ void ServerCheatHook(AFortPlayerControllerAthena* PlayerController, FString Msg)
 
 			if (WID)
 			{
-				if (IsInventoryFull(ReceivingController, 1, WID, count))
+				if (IsPrimaryQuickbar(WID) && IsInventoryFull(ReceivingController, 1, WID, count))
 				{
 					auto Pawn = Cast<AFortPlayerPawnAthena>(ReceivingController->Pawn);
 

@@ -215,7 +215,7 @@ DWORD WINAPI Main(LPVOID)
     HookFunction(DefaultFortPCAthena, ServerChangeNameFn, ServerChangeNameHook);
 
     static auto ServerRepairBuildingActorFn = UObject::FindObject<UFunction>("/Script/FortniteGame.FortPlayerController.ServerRepairBuildingActor");
-    HookFunction2(DefaultFortPCAthena, ServerRepairBuildingActorFn, ServerRepairBuildingActorHook);
+    HookFunction(DefaultFortPCAthena, ServerRepairBuildingActorFn, ServerRepairBuildingActorHook);
     // AddHook(ServerRepairBuildingActorFn, ServerRepairBuildingActorHook);
 
     static auto GiveItemToInventoryOwnerFn = UObject::FindObject<UFunction>("/Script/FortniteGame.FortKismetLibrary.GiveItemToInventoryOwner");

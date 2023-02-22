@@ -208,7 +208,7 @@ inline __int64 GetFunctionIdxOrPtr(UFunction* Function, bool bHookExec = false, 
 
 			auto decidx = HexToDec(bytes);
 
-			// std::cout << "decidx: " << decidx << '\n';
+			std::cout << "decidx: " << decidx << '\n';
 
 			return decidx;
 		}
@@ -218,6 +218,37 @@ inline __int64 GetFunctionIdxOrPtr(UFunction* Function, bool bHookExec = false, 
 		{
 			if (bFoundValidate)
 			{
+				std::string wtf = "";
+
+				int shots = 0;
+
+				bool bFoundFirstNumber = false;
+
+				for (__int64 z = (NativeAddr + i + 5); z != (NativeAddr + i + 1); z -= 1)
+				{
+					auto anafa = (int)(*(uint8_t*)z);
+
+					auto asfk = anafa < 10 ? "0" + std::format("{:x}", anafa) : std::format("{:x}", anafa);
+
+					// std::cout << std::format("[{}] 0x{}\n", shots, asfk);
+
+					if (*(uint8_t*)z == 0 ? bFoundFirstNumber : true)
+					{
+						wtf += asfk;
+						bFoundFirstNumber = true;
+					}
+
+					shots++;
+				}
+
+				std::transform(wtf.begin(), wtf.end(), wtf.begin(), ::toupper);
+
+				// std::cout << "wtf: " << wtf << '\n';
+
+				auto decidx2 = HexToDec(wtf);
+
+				// std::cout << "decidx2: " << decidx2 << '\n';
+
 				auto SecondByte = *(uint8_t*)(NativeAddr + i + 2);
 				auto ThirdByte = *(uint8_t*)(NativeAddr + i + 3);
 
@@ -244,7 +275,7 @@ inline __int64 GetFunctionIdxOrPtr(UFunction* Function, bool bHookExec = false, 
 
 				// std::cout << "decidx: " << decidx << '\n';
 
-				return decidx;
+				return decidx2;
 			}
 			else
 			{
