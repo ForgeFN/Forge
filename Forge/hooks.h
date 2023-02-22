@@ -86,7 +86,7 @@ static void ActivateAbility(UAbilitySystemComponent* AbilitySystemComponent, FGa
 
 	if (!Spec || !Spec->Ability)
 	{
-		std::cout << "no spec!\n";
+		// std::cout << "no spec!\n";
 		AbilitySystemComponent->ClientActivateAbilityFailed(Ability, PredictionKey.Current);
 		return;
 	}
@@ -99,23 +99,24 @@ static void ActivateAbility(UAbilitySystemComponent* AbilitySystemComponent, FGa
 
 	if (!InternalTryActivateAbility(AbilitySystemComponent, Ability, PredictionKey, &InstancedAbility, nullptr, EventData))
 	{
-		std::cout << "activateability failed!\n";
+		// std::cout << "activateability failed!\n";
 		AbilitySystemComponent->ClientActivateAbilityFailed(Ability, PredictionKey.Current);
 		Spec->InputPressed = false;
 
-		AbilitySystemComponent->ActivatableAbilities.MarkArrayDirty();
+		// AbilitySystemComponent->ActivatableAbilities.MarkArrayDirty();
+		AbilitySystemComponent->ActivatableAbilities.MarkItemDirty(*Spec);
 	}
 }
 
 static void ServerTryActivateAbilityHook(UAbilitySystemComponent* AbilitySystemComponent, FGameplayAbilitySpecHandle Handle, bool InputPressed, FPredictionKey PredictionKey)
 {
-	std::cout << "tryacxtivate!\n";
+	// std::cout << "tryacxtivate!\n";
 	ActivateAbility(AbilitySystemComponent, Handle, PredictionKey);
 }
 
 static void ServerTryActivateAbilityWithEventDataHook(UAbilitySystemComponent* AbilitySystemComponent, FGameplayAbilitySpecHandle Handle, bool InputPressed, FPredictionKey PredictionKey, FGameplayEventData TriggerEventData)
 {
-	std::cout << "tryacxtivateeventdata!\n";
+	// std::cout << "tryacxtivateeventdata!\n";
 	ActivateAbility(AbilitySystemComponent, Handle, PredictionKey, &TriggerEventData);
 }
 
@@ -123,10 +124,17 @@ static void (*ServerAbilityRPCBatch)(UAbilitySystemComponent* AbilitySystemCompo
 
 static void ServerAbilityRPCBatchHook(UAbilitySystemComponent* AbilitySystemComponent, FGameplayAbilities_FServerAbilityRPCBatch BatchInfo)
 {
-	std::cout << "tryacxtivaterpc!\n";
+	// std::cout << "tryacxtivaterpc!\n";
 	ActivateAbility(AbilitySystemComponent, BatchInfo.AbilitySpecHandle, BatchInfo.PredictionKey, nullptr);
 
-	return ServerAbilityRPCBatch(AbilitySystemComponent, BatchInfo);
+	AbilitySystemComponent->ServerSetReplicatedTargetData(BatchInfo.AbilitySpecHandle, BatchInfo.PredictionKey, BatchInfo.TargetData, FGameplayTag(), BatchInfo.PredictionKey);
+
+	if (BatchInfo.Ended)
+	{
+		FGameplayAbilityActivationInfo FakeInfo;
+		FakeInfo.PredictionKeyWhenActivated = BatchInfo.PredictionKey;
+		AbilitySystemComponent->ServerEndAbility(BatchInfo.AbilitySpecHandle, FakeInfo, BatchInfo.PredictionKey);
+	}
 }
 
 char SpawnLootHook(ABuildingContainer* BuildingContainer, AFortPlayerPawnAthena* Pawn, int idk, int idk2)
@@ -1411,6 +1419,9 @@ void HandleStartingNewPlayerHook(AFortGameModeAthena* GameMode, AFortPlayerContr
 
 	NewPlayer->bHasServerFinishedLoading = true;
 	NewPlayer->OnRep_bHasServerFinishedLoading();
+
+	// NewPlayer->bBuildFree = true;
+	// NewPlayer->bInfiniteAmmo = true;
 
 	PlayerState->bHasStartedPlaying = true;
 	PlayerState->OnRep_bHasStartedPlaying();

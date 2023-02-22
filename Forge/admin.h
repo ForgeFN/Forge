@@ -43,12 +43,12 @@ void ServerCheatHook(AFortPlayerControllerAthena* PlayerController, FString Msg)
 
 	auto& ClientConnections = GetWorld()->NetDriver->ClientConnections;
 
-	if (firstBackslash = lastBackslash)
+	/* if (firstBackslash == lastBackslash)
 	{
 		SendMessageToConsole(PlayerController, L"Warning: You have a backslash but no ending backslash, was this by mistake? Executing on you.");
-	}
+	} */
 
-	else if (firstBackslash != std::string::npos && lastBackslash != std::string::npos) // we want to specify a player
+	if (firstBackslash != lastBackslash && firstBackslash != std::string::npos && lastBackslash != std::string::npos) // we want to specify a player
 	{
 		std::string player = OldMsg;
 
