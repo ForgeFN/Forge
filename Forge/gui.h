@@ -389,6 +389,51 @@ DWORD WINAPI GuiThread(LPVOID)
 									Ban(Controller, RequestURLStr);
 								}
 
+								/* if (ImGui::Button("Spawn Stationary Bot"))
+								{
+									static auto PawnClass = UObject::FindObject<UBlueprintGeneratedClass>("/Game/Athena/PlayerPawn_Athena.PlayerPawn_Athena_C");
+
+									auto Pawn = Cast<AFortPlayerPawnAthena>(Controller->Pawn);
+
+									if (Pawn)
+									{
+										auto SpawnLoc = Pawn->K2_GetActorLocation();
+
+										auto GameMode = Cast<AFortGameModeAthena>(GetWorld()->AuthorityGameMode);
+										auto ServerBotManager = GameMode->ServerBotManager;
+
+										auto CustomizationData = (UFortAthenaAIBotCustomizationData*)UGameplayStatics::SpawnObject(UFortAthenaAIBotCustomizationData::StaticClass(), GetTransientPackage());
+
+										CustomizationData->PawnClass = UObject::FindObject<UBlueprintGeneratedClass>("/Game/Athena/PlayerPawn_Athena.PlayerPawn_Athena_C");
+
+										auto BotPawn = ServerBotManager->SpawnBot(SpawnLoc, FRotator(), CustomizationData);
+
+										static auto DefaultPickaxe = UObject::FindObject<UAthenaPickaxeItemDefinition>("/Game/Athena/Items/Cosmetics/Pickaxes/DefaultPickaxe.DefaultPickaxe");
+										BotPawn->EquipWeaponDefinition(DefaultPickaxe->WeaponDefinition, FGuid(0, 0, 0, 0));
+
+										BotPawn->bCanBeDamaged = true;
+										BotPawn->HealthSet = Pawn->HealthSet;
+
+										BotPawn->PlayerState = BotPawn->PlayerState ? BotPawn->PlayerState : GetWorld()->SpawnActor<AFortPlayerStateAthena>({}, {});
+										BotPawn->PlayerState->SetReplicates(true);
+										BotPawn->OnRep_PlayerState();
+
+										auto BotPS = BotPawn->PlayerState;
+
+										std::cout << "BotPS: " << BotPS << '\n';
+
+										if (BotPS)
+										{
+											BotPS->PlayerName = L"discord.gg/reboot";
+											BotPS->OnRep_PlayerName();
+										}
+									}
+									else
+									{
+										std::cout << "No pawn!\n";
+									}
+								} */
+
 								if (ImGui::Button("Back"))
 								{
 									PlayerTab = -1;

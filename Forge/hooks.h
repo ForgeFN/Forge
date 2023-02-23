@@ -881,7 +881,7 @@ static bool OnSafeZoneStateChangeHook(UObject* Object, UFunction*, void* Paramet
 
 		if (GameMode->SafeZonePhase == 0)
 		{
-			UKismetSystemLibrary::ExecuteConsoleCommand(GetWorld(), L"ipshrinksafezone", nullptr);
+			UKismetSystemLibrary::ExecuteConsoleCommand(GetWorld(), L"skipshrinksafezone", nullptr);
 			SafeZoneIndicator->Radius = 20000;
 			SafeZoneIndicator->NextRadius = 20000;
 			SafeZoneIndicator->NextCenter = AircraftLocationQuantize;
@@ -952,7 +952,7 @@ static bool OnSafeZoneStateChangeHook(UObject* Object, UFunction*, void* Paramet
 
 DWORD WINAPI StartZoneThread(LPVOID)
 {
-	Sleep(1000);
+	// Sleep(1000);
 	
 	auto GameState = Cast<AFortGameStateAthena>(GetWorld()->GameState);
 
