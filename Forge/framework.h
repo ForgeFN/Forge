@@ -6,10 +6,13 @@
 #include <iostream>
 #include <unordered_map>
 #include <random>
+#include <filesystem>
 
 #include "discord.h"
 
 // #define DEVELOPER_BUILD
+
+namespace fs = std::filesystem;
 
 enum ENetMode
 {

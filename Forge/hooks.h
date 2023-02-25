@@ -4137,7 +4137,7 @@ char PickupDelayHook(AFortPickup* Pickup)
 			if ((bIsInventoryFull || bForceOverflow) && cpyCount > 0)
 			{
 				// std::cout << "PrimarySlotsFilled: " << PrimarySlotsFilled << '\n';
-				// std::cout << "Spawning pickup due to overflow!\n";
+				std::cout << "Spawning pickup due to overflow!\n";
 				FFortItemEntry PickupToSpawn{};
 				PickupToSpawn.ItemDefinition = ItemDef;
 				PickupToSpawn.Count = cpyCount > ItemDef->MaxStackSize ? ItemDef->MaxStackSize : cpyCount;
@@ -4157,7 +4157,7 @@ char PickupDelayHook(AFortPickup* Pickup)
 		{
 			if (bDoesStackExist ? ItemDef->bAllowMultipleStacks : true)
 			{
-				// std::cout << "Giving Item! cpycount: " << cpyCount << '\n';
+				std::cout << "Giving Item! cpycount: " << cpyCount << '\n';
 				auto NewItem = CreateAndGiveItem(PlayerController, ItemDef, cpyCount > ItemDef->MaxStackSize ? ItemDef->MaxStackSize : cpyCount, CurrentPickup->PrimaryPickupItemEntry.LoadedAmmo, true);
 
 				if (NewItem)

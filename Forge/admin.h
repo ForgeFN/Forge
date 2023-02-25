@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <vector>
 #include <format>
+#include "json.hpp"
 
 bool IsOperatora(APlayerState* PlayerState, AFortPlayerController* PlayerController)
 {
@@ -331,6 +332,180 @@ void ServerCheatHook(AFortPlayerControllerAthena* PlayerController, FString Msg)
 			SendMessageToConsole(PlayerController, L"Spawned bot pawn!");
 		}
 #endif
+		else if (Command == "save")
+		{
+			if (!Globals::bCreative)
+			{
+				SendMessageToConsole(PlayerController, L"It is not creative!");
+				return;
+			}
+
+			auto Volume = ReceivingController->CreativePlotLinkedVolume;
+
+			if (!Volume)
+			{
+				SendMessageToConsole(PlayerController, L"They do not have an island!");
+				return;
+			}
+
+			if (Arguments.size() <= 1)
+			{
+				SendMessageToConsole(PlayerController, L"Please provide a filename!\n");
+				return;
+			}
+
+			std::string FileName = "islandSave";
+
+			try { FileName = Arguments[1]; }
+			catch (...) {}
+
+			if (!fs::exists("Islands"))
+			{
+				fs::create_directories("Islands");
+			}
+
+			if (fs::exists("Islands\\" + FileName + ".save"))
+			{
+				SendMessageToConsole(PlayerController, L"A save with that file name already exists, overriding.\n");
+				// return;
+			}
+			else
+			{
+				// fs::create_directories("Islands\\" + FileName + ".save");
+			}
+
+			std::cout << "current dir: " << fs::current_path().string() << '\n';
+
+			std::fstream fileStream(fs::current_path().string() + "\\Islands\\" + FileName + ".save", std::ios::out);
+
+			if (!fileStream.is_open())
+			{
+				SendMessageToConsole(PlayerController, L"Failed to open filestream!\n");
+				return;
+			}
+
+			auto AllBuildingActors = Volume->GetActorsWithinVolumeByClass(ABuildingActor::StaticClass());
+			auto VolumeLocation = Volume->K2_GetActorLocation();
+			auto VolumeRotation = Volume->K2_GetActorRotation();
+
+			nlohmann::json j = nlohmann::json::array({});
+
+			for (int i = 0; i < AllBuildingActors.Num(); i++)
+			{
+				auto CurrentBuildingActor = (ABuildingActor*)AllBuildingActors[i];
+
+				if (CurrentBuildingActor->bCanBeSavedInCreativeVolume)
+				{
+					auto Loc = CurrentBuildingActor->K2_GetActorLocation() - VolumeLocation;
+					auto Rot = CurrentBuildingActor->K2_GetActorRotation();
+					Rot.Pitch -= VolumeRotation.Pitch;
+					Rot.Yaw -= VolumeRotation.Yaw;
+					Rot.Pitch -= VolumeRotation.Pitch;
+
+					nlohmann::json ja = { { UKismetSystemLibrary::GetPathName(CurrentBuildingActor->Class).ToString(),
+					{ Loc.X, Loc.Y, Loc.Z, Rot.Pitch, Rot.Roll, Rot.Yaw, CurrentBuildingActor->TeamIndex, CurrentBuildingActor->GetHealth()}}};
+
+					j.push_back(ja);
+				}
+			}
+
+			fileStream << j.dump() << '\n';
+			SendMessageToConsole(PlayerController, L"Saved!");
+		}
+		else if (Command == "load")
+		{
+			if (!Globals::bCreative)
+			{
+				SendMessageToConsole(PlayerController, L"It is not creative!");
+				return;
+			}
+
+			auto Volume = ReceivingController->CreativePlotLinkedVolume;
+
+			if (!Volume)
+			{
+				SendMessageToConsole(PlayerController, L"They do not have an island!");
+				return;
+			}
+
+			if (Arguments.size() <= 1)
+			{
+				SendMessageToConsole(PlayerController, L"Please provide a filename!\n");
+				return;
+			}
+
+			std::string FileName = "islandSave";
+
+			try { FileName = Arguments[1]; }
+			catch (...) {}
+
+			std::ifstream fileStream(fs::current_path().string() + "\\Islands\\" + FileName + ".save");
+
+			if (!fileStream.is_open())
+			{
+				SendMessageToConsole(PlayerController, L"Failed to open filestream (file may not exist)!\n");
+				return;
+			}
+
+			nlohmann::json j;
+			fileStream >> j;
+
+			auto AllBuildingActors = Volume->GetActorsWithinVolumeByClass(ABuildingActor::StaticClass());
+
+			for (int i = 0; i < AllBuildingActors.Num(); i++)
+			{
+				auto CurrentBuildingActor = (ABuildingActor*)AllBuildingActors[i];
+				CurrentBuildingActor->SilentDie();
+			}
+
+			auto VolumeLocation = Volume->K2_GetActorLocation();
+			auto VolumeRotation = Volume->K2_GetActorRotation();
+
+			for (const auto& obj : j) {
+				for (auto it = obj.begin(); it != obj.end(); ++it) {
+					auto& ClassName = it.key();
+					auto Class = UObject::FindObject<UClass>(ClassName);
+
+					if (!Class)
+					{
+						std::cout << "Invalid Class!\n";
+						continue;
+					}
+
+					std::vector<float> stuff;
+
+					auto& value = it.value();
+
+					if (value.is_array()) {
+						for (const auto& elem : value) {
+							stuff.push_back(elem);
+						}
+					}
+					else {
+
+					}
+
+					std::cout << "stuff.size(): " << stuff.size() << '\n';
+
+					if (stuff.size() >= 8)
+					{
+						FRotator rot{};
+						rot.Pitch = stuff[3] + VolumeRotation.Pitch;
+						rot.Roll = stuff[4] + VolumeRotation.Roll;
+						rot.Yaw = stuff[5] + VolumeRotation.Yaw;
+
+						auto NewActor = GetWorld()->SpawnActor<ABuildingActor>(FVector{ stuff[0] + VolumeLocation.X , stuff[1] + VolumeLocation.Y, stuff[2] + VolumeLocation.Z },
+							rot, Class);
+
+						NewActor->InitializeKismetSpawnedBuildingActor(NewActor, nullptr, false);
+						NewActor->TeamIndex = stuff[6];
+						NewActor->SetHealth(stuff[7]);
+					}
+				}
+			}
+
+			SendMessageToConsole(PlayerController, L"Loaded!");
+		}
 		else if (Command == "spawnplayset")
 		{
 			auto Pawn = Cast<AFortPlayerPawnAthena>(ReceivingController->Pawn);
@@ -338,6 +513,12 @@ void ServerCheatHook(AFortPlayerControllerAthena* PlayerController, FString Msg)
 			if (!Pawn)
 			{
 				SendMessageToConsole(PlayerController, L"No pawn!");
+				return;
+			}
+
+			if (Arguments.size() <= 1)
+			{
+				SendMessageToConsole(PlayerController, L"Please provide a playset name!\n");
 				return;
 			}
 
