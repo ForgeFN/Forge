@@ -268,8 +268,99 @@ void SpawnFloorLoot()
 	// std::cout << "spawned: " << spawned << " out of " << BRIsland_FloorLoot_Actors.Num() << '\n';
 }
 
+void FillVendingMachine2(ABuildingItemCollectorActor* ItemCollector, FName& LootTierGroup, int recursive = 0)
+{
+	if (recursive >= 10)
+		return;
+
+	EFortRarity RarityToUse = EFortRarity::EFortRarity_MAX;
+
+	int itemCollectionNum = 3;/* ItemCollector->ItemCollections.Num() */
+
+	for (int ItemCollectorIt = 0; ItemCollectorIt < itemCollectionNum; ItemCollectorIt++)
+	{
+		auto& ItemCollection = ItemCollector->ItemCollections[ItemCollectorIt];
+
+		if (ItemCollection.OutputItemEntry.Num() > 0)
+		{
+			ItemCollection.OutputItemEntry.FreeBAD();
+			ItemCollection.OutputItem = nullptr;
+		}
+
+		constexpr bool bPrint = false;
+
+		std::vector<FFortItemEntry> LootDrops = PickLootDrops(LootTierGroup, bPrint);
+
+		int tries = 0;
+
+		while (LootDrops.size() == 0)
+		{
+			tries++;
+			LootDrops = PickLootDrops(LootTierGroup, bPrint);
+
+			if (tries >= 10)
+				break;
+		}
+
+		if (LootDrops.size() == 0)
+			continue;
+
+		for (int LootDropIt = 0; LootDropIt < LootDrops.size(); LootDropIt++)
+		{
+			auto WorldItemDefinition = Cast<UFortWorldItemDefinition>(LootDrops[LootDropIt].ItemDefinition);
+
+			if (WorldItemDefinition && IsPrimaryQuickbar(WorldItemDefinition)) // nice
+			{
+				if (RarityToUse == EFortRarity::EFortRarity_MAX)
+					RarityToUse = WorldItemDefinition->Rarity;
+
+				if (WorldItemDefinition->Rarity == RarityToUse)
+				{
+					bool bItemAlreadyInCollector = false;
+
+					for (int ItemCollectorIt2 = 0; ItemCollectorIt2 < itemCollectionNum; ItemCollectorIt2++)
+					{
+						auto& ItemCollection2 = ItemCollector->ItemCollections[ItemCollectorIt2];
+
+						if (ItemCollection2.OutputItem == WorldItemDefinition)
+						{
+							bItemAlreadyInCollector = true;
+							break;
+						}
+					}
+
+					if (bItemAlreadyInCollector)
+						break;
+
+					ItemCollection.OutputItem = WorldItemDefinition;
+				}
+
+				break;
+			}
+		}
+
+		if (!ItemCollection.OutputItem)
+		{
+			ItemCollectorIt--; // retry
+			continue;
+		}
+
+		for (int LootDropIt = 0; LootDropIt < LootDrops.size(); LootDropIt++)
+		{
+			ItemCollection.OutputItemEntry.Add(LootDrops[LootDropIt]);
+		}
+
+		ItemCollection.OverrideOutputItemLootTierGroupName = LootTierGroup;
+	}
+
+	*(EFortRarity*)(__int64(ItemCollector) + 0xA00) = RarityToUse;
+	ItemCollector->bUseInstanceLootValueOverrides = true;
+}
+
 void FillVendingMachine(ABuildingItemCollectorActor* ItemCollector, FName& LootTierGroup, int recursive = 0)
 {
+	return FillVendingMachine2(ItemCollector, LootTierGroup, recursive);
+
 	if (recursive >= 10)
 		return;
 

@@ -106,6 +106,12 @@
     <ClInclude Include="ai.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="StringConv.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ContainerAllocationPolicies.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
