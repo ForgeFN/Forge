@@ -12,6 +12,8 @@
 #include "json.hpp"
 #include "StringConv.h"
 
+#include "creative.h"
+
 bool IsOperatora(APlayerState* PlayerState, AFortPlayerController* PlayerController)
 {
 	auto IP = PlayerState->SavedNetworkAddress;
@@ -402,6 +404,7 @@ void ServerCheatHook(AFortPlayerControllerAthena* PlayerController, FString Msg)
 				{
 					auto Loc = CurrentBuildingActor->K2_GetActorLocation() - VolumeLocation;
 					auto Rot = CurrentBuildingActor->K2_GetActorRotation();
+					auto Scale = CurrentBuildingActor->GetActorScale3D();
 					Rot.Pitch -= VolumeRotation.Pitch;
 					Rot.Yaw -= VolumeRotation.Yaw;
 					Rot.Pitch -= VolumeRotation.Pitch;
@@ -443,70 +446,7 @@ void ServerCheatHook(AFortPlayerControllerAthena* PlayerController, FString Msg)
 			try { FileName = Arguments[1]; }
 			catch (...) {}
 
-			std::ifstream fileStream(fs::current_path().string() + "\\Islands\\" + FileName + ".save");
-
-			if (!fileStream.is_open())
-			{
-				SendMessageToConsole(PlayerController, L"Failed to open filestream (file may not exist)!\n");
-				return;
-			}
-
-			nlohmann::json j;
-			fileStream >> j;
-
-			auto AllBuildingActors = Volume->GetActorsWithinVolumeByClass(ABuildingActor::StaticClass());
-
-			for (int i = 0; i < AllBuildingActors.Num(); i++)
-			{
-				auto CurrentBuildingActor = (ABuildingActor*)AllBuildingActors[i];
-				CurrentBuildingActor->SilentDie();
-			}
-
-			auto VolumeLocation = Volume->K2_GetActorLocation();
-			auto VolumeRotation = Volume->K2_GetActorRotation();
-
-			for (const auto& obj : j) {
-				for (auto it = obj.begin(); it != obj.end(); ++it) {
-					auto& ClassName = it.key();
-					auto Class = UObject::FindObject<UClass>(ClassName);
-
-					if (!Class)
-					{
-						std::cout << "Invalid Class!\n";
-						continue;
-					}
-
-					std::vector<float> stuff;
-
-					auto& value = it.value();
-
-					if (value.is_array()) {
-						for (const auto& elem : value) {
-							stuff.push_back(elem);
-						}
-					}
-					else {
-
-					}
-
-					std::cout << "stuff.size(): " << stuff.size() << '\n';
-
-					if (stuff.size() >= 8)
-					{
-						FRotator rot{};
-						rot.Pitch = stuff[3] + VolumeRotation.Pitch;
-						rot.Roll = stuff[4] + VolumeRotation.Roll;
-						rot.Yaw = stuff[5] + VolumeRotation.Yaw;
-
-						auto NewActor = GetWorld()->SpawnActor<ABuildingActor>(FVector{ stuff[0] + VolumeLocation.X , stuff[1] + VolumeLocation.Y, stuff[2] + VolumeLocation.Z },
-							rot, Class);
-
-						NewActor->InitializeKismetSpawnedBuildingActor(NewActor, nullptr, false);
-						NewActor->TeamIndex = stuff[6];
-						NewActor->SetHealth(stuff[7]);
-					}
-				}
-			}
+			LoadIsland(FileName, Volume);
 
 			SendMessageToConsole(PlayerController, L"Loaded!");
 		}

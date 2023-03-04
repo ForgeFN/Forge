@@ -18,6 +18,13 @@ typedef unsigned __int64 uint64;
 #define NumBitsPerDWORD ((int32)32)
 #define NumBitsPerDWORDLogTwo ((int32)5)
 
+inline void* (*FMemory_Realloc2)(void* Memory, __int64 NewSize, unsigned int Alignment) = decltype(FMemory_Realloc2)((uintptr_t)GetModuleHandle(0) + 0x2093D50);
+
+static inline void* FMemory_Malloc(size_t size, unsigned int Alignment = 0)
+{
+    return FMemory_Realloc2(0, size, Alignment);
+}
+
 namespace UE
 {
     static FORCEINLINE uint32 CountLeadingZeros(uint32 Value)
@@ -282,7 +289,7 @@ namespace UE
 
             FORCEINLINE void operator=(void* InElements)
             {
-                SecondaryData = InElements;
+                SecondaryData = (ElementType*)InElements;
             }
 
             FORCEINLINE ElementType& GetInlineElement(int32 Index)
@@ -1043,9 +1050,12 @@ namespace UE
             // ToDo: Check for duplication
 
             if (!this->IsValid())
-                return this->Initialize();
+            {
+                this->Initialize();
+                return 0; // ???
+            }
 
-            return Elements.AddSingle({ InElement, InHashIndex, InHashNextId });
+            return Elements.Add({ InElement, InHashIndex, InHashNextId });
         }
         FORCEINLINE void Initialize(const int32 NumElementsToInitWith = 5)
         {

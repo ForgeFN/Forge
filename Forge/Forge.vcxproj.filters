@@ -18,6 +18,9 @@
     <Filter Include="Vendor\ImGui">
       <UniqueIdentifier>{9c226999-ff95-4f2b-8176-bc27d6c99224}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\Unreal">
+      <UniqueIdentifier>{24a75cd5-3357-46e3-8cf0-4c12d308e2b2}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="dllmain.cpp">
@@ -106,10 +109,13 @@
     <ClInclude Include="ai.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="StringConv.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="ContainerAllocationPolicies.h">
+      <Filter>Header Files\Unreal</Filter>
+    </ClInclude>
+    <ClInclude Include="StringConv.h">
+      <Filter>Header Files\Unreal</Filter>
+    </ClInclude>
+    <ClInclude Include="creative.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

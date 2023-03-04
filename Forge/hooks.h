@@ -1757,9 +1757,9 @@ void HandleStartingNewPlayerHook(AFortGameModeAthena* GameMode, AFortPlayerContr
 		NewPlayer->CreativePlotLinkedVolume->VolumeState = EVolumeState::Ready;
 		NewPlayer->CreativePlotLinkedVolume->OnRep_VolumeState();
 
-		static UFortCreativeRealEstatePlotItemDefinition* RealEstatePID =
+		// static UFortCreativeRealEstatePlotItemDefinition* RealEstatePID =
 			// UObject::FindObject<UFortCreativeRealEstatePlotItemDefinition>("/Game/Playgrounds/Items/Plots/BlackGlass_Medium.BlackGlass_Medium");
-			UObject::FindObject<UFortCreativeRealEstatePlotItemDefinition>("/Game/Playgrounds/Items/Plots/Temperate_Medium.Temperate_Medium");
+			// UObject::FindObject<UFortCreativeRealEstatePlotItemDefinition>("/Game/Playgrounds/Items/Plots/Temperate_Medium.Temperate_Medium");
 		
 		auto VolumeManager = GameState->VolumeManager;
 		auto& VolumeObjects = VolumeManager->VolumeObjects;
@@ -1773,6 +1773,9 @@ void HandleStartingNewPlayerHook(AFortGameModeAthena* GameMode, AFortPlayerContr
 		{
 			static auto IslandPlayset = // UObject::FindObject<UFortPlaysetItemDefinition>("/Game/Playsets/PID_Playset_60x60_Composed_BlackGlass.PID_Playset_60x60_Composed_BlackGlass"); 
 				UObject::FindObject<UFortPlaysetItemDefinition>("/Game/Playsets/PID_Playset_60x60_Composed.PID_Playset_60x60_Composed");
+				// UObject::FindObject<UFortPlaysetItemDefinition>("/Game/Playsets/PID_Playset_105x105_Composed_Desert.PID_Playset_105x105_Composed_Desert");
+				// UObject::FindObject<UFortPlaysetItemDefinition>("/Game/Playsets/PID_Playset_105x105_Composed_FlatGrid.PID_Playset_105x105_Composed_FlatGrid");
+				// UObject::FindObject<UFortPlaysetItemDefinition>("/Game/Playsets/PID_Playset_105x105_Composed_Desert_02.PID_Playset_105x105_Composed_Desert_02");
 				// RealEstatePID->BasePlayset.Get();
 
 			if (NewPlayer->CreativePlotLinkedVolume)
@@ -3532,9 +3535,13 @@ void ServerHandlePickupHook(AFortPlayerPawn* Pawn, AFortPickup* Pickup, float In
 static void ServerBeginEditingBuildingActorHook(AFortPlayerController* PlayerController, ABuildingSMActor* BuildingActorToEdit)
 {
 	auto Pawn = PlayerController->MyFortPawn;
+
+	if (!Pawn)
+		return;
+
 	auto PlayerState = Cast<AFortPlayerStateZone>(Pawn->PlayerState);
 
-	if (!Pawn || !PlayerState)
+	if (!PlayerState)
 		return;
 
 	/* if (Pawn->CurrentWeapon)
@@ -3805,7 +3812,8 @@ void GetPlayerViewPointHook(AFortPlayerController* PlayerController, FVector& Lo
 
 	auto PlayerState = Cast<AFortPlayerStateZone>(PlayerController->PlayerState);
 
-	if (PlayerState && PlayerState->SpectatingTarget) // else if (IsInState(NAME_Spectating) && HasAuthority() && !IsLocalController())
+	// if (PlayerState && PlayerState->SpectatingTarget) // else if (IsInState(NAME_Spectating) && HasAuthority() && !IsLocalController())
+	if (PlayerController->StateName.ComparisonIndex == 322)
 	{
 		Location = PlayerController->LastSpectatorSyncLocation;
 		Rotation = PlayerController->LastSpectatorSyncRotation;
