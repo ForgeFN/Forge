@@ -326,6 +326,9 @@ DWORD WINAPI Main(LPVOID)
     static auto ServerAddMapMarkerFn = UObject::FindObject<UFunction>("/Script/FortniteGame.AthenaMarkerComponent.ServerAddMapMarker");
     HookFunction(UAthenaMarkerComponent::StaticClass()->CreateDefaultObject(), ServerAddMapMarkerFn, ServerAddMapMarkerHook);
 
+    static auto ServerRemoveMapMarkerFn = UObject::FindObject<UFunction>("/Script/FortniteGame.AthenaMarkerComponent.ServerRemoveMapMarker");
+    HookFunction(UAthenaMarkerComponent::StaticClass()->CreateDefaultObject(), ServerRemoveMapMarkerFn, ServerRemoveMapMarkerHook);
+
     static auto ServerMoveFn = UObject::FindObject<UFunction>("/Script/FortniteGame.FortPhysicsPawn.ServerMove");
     // HookFunction(AFortPhysicsPawn::StaticClass()->CreateDefaultObject(), ServerMoveFn, ServerMoveHook);
     AddHook(ServerMoveFn, ServerMoveHook);

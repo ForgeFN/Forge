@@ -4353,3 +4353,39 @@ void ServerFireActorInCannonHook(AFortWeaponRangedMountedCannon* Cannon, FVector
 	PushCannon->OnLaunchPawn(PawnToShoot, LaunchDir);
 	PushCannon->MultiCastPushCannonLaunchedPlayer();
 }
+
+void ServerRemoveMapMarkerHook(UAthenaMarkerComponent* MarkerComponent, FMarkerID MarkerID, ECancelMarkerReason CancelReason)
+{
+	auto Owner = MarkerComponent->GetOwner();
+
+	// MessageBoxA(0, Owner ? Owner->GetFullName().c_str() : "NULL", "Forge", MB_OK);
+
+	// return;
+
+	AFortPlayerControllerAthena* PlayerController = Cast<AFortPlayerControllerAthena>(Owner);
+
+	if (!PlayerController)
+		return;
+
+	AFortPlayerStateAthena* PlayerState = Cast<AFortPlayerStateAthena>(PlayerController->PlayerState);
+
+	for (int i = 0; i < PlayerState->PlayerTeam->TeamMembers.Num(); i++)
+	{
+		if (PlayerState->PlayerTeam->TeamMembers[i] == PlayerController)
+			continue;
+
+		auto CurrentTeamMemberPC = Cast<AFortPlayerControllerAthena>(PlayerState->PlayerTeam->TeamMembers[i]);
+
+		if (!CurrentTeamMemberPC)
+			continue;
+
+		auto CurrentTeamMemberMarkerComponent = CurrentTeamMemberPC->MarkerComponent;// (UAthenaMarkerComponent*)CurrentTeamMemberPC->GetComponentByClass(UAthenaMarkerComponent::StaticClass());
+
+		// std::cout << "CurrentTeamMemberMarkerComponent: " << CurrentTeamMemberMarkerComponent << '\n';
+
+		if (!CurrentTeamMemberMarkerComponent)
+			continue;
+
+		CurrentTeamMemberMarkerComponent->ClientCancelMarker(MarkerID);
+	}
+}
