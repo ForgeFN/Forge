@@ -1517,7 +1517,8 @@ void HandleStartingNewPlayerHook(AFortGameModeAthena* GameMode, AFortPlayerContr
 	PlayerState->bHasStartedPlaying = true;
 	PlayerState->OnRep_bHasStartedPlaying();
 
-	auto PickaxeDefinition = GetRandomObjectOfClass<UAthenaPickaxeItemDefinition>(true, true); // UObject::FindObject<UAthenaPickaxeItemDefinition>("/Game/Athena/Items/Cosmetics/Pickaxes/DefaultPickaxe.DefaultPickaxe");
+	auto PickaxeDefinition = Globals::bNoMCP ? GetRandomObjectOfClass<UAthenaPickaxeItemDefinition>(true, true) :
+		NewPlayer->CosmeticLoadoutPC.Pickaxe; // UObject::FindObject<UAthenaPickaxeItemDefinition>("/Game/Athena/Items/Cosmetics/Pickaxes/DefaultPickaxe.DefaultPickaxe");
 	GiveItem(NewPlayer, PickaxeDefinition->WeaponDefinition, 1);
 	
 	/*
@@ -1876,7 +1877,7 @@ void ServerLoadingScreenDroppedHook(AFortPlayerControllerAthena* PlayerControlle
 
 	auto Loadout = PlayerController->CosmeticLoadoutPC; // GetLoadout(PlayerController->AthenaProfile, false);
 
-	// std::cout << "Loadout.Backpack: " << Loadout.Backpack << '\n';
+	std::cout << "Loadout.Backpack: " << Loadout.Backpack << '\n';
 
 	if (Loadout.Backpack)
 	{
@@ -3153,6 +3154,17 @@ char BuildingDamageHook(ABuildingActor* BuildingActor, float DamageIg, FGameplay
 					// int x = (BuildingSMActor->GetMaxHealth() / DamageThatWillAffect) / 100;
 					// UDataTableFunctionLibrary::EvaluateCurveTableRow(CurveTable, BuildingResourceAmountOverride.RowName, x, L"", &test2, &test);
 					// std::cout << "test: " << test << '\n';
+
+					/* std::cout << "Out: " << Out << '\n';
+
+					for (float i = 0; i < 1; i += 0.01)
+					{
+						float test = 0;
+						TEnumAsByte<EEvaluateCurveTableResult> test2;
+						FString ContextString;
+						UDataTableFunctionLibrary::EvaluateCurveTableRow(CurveTable, BuildingResourceAmountOverride.RowName, i, ContextString, &test2, &test);
+						std::cout << std::format("[{}] {}\n", i, test);
+					} */
 
 					auto skid = Out / /* round */(BuildingSMActor->GetMaxHealth() / DamageThatWillAffect);
 

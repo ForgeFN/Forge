@@ -324,6 +324,8 @@ static __int64 (*ApplyCustomizationToCharacter)(AFortPlayerState* a1) = decltype
 
 inline APawn* SpawnDefaultPawnForHook(AGameModeBase* GameMode, AController* NewPlayer, AActor* StartSpot)
 {
+	// std::cout << std::format("SpawnDefaultPawnForHook: 0x{:x}\n", __int64(_ReturnAddress()) - __int64(GetModuleHandleW(0)));
+
 	auto SpawnTransform = StartSpot->GetTransform();
 	// SpawnLocation.Translation = FVector{ 1250, 1818, 3284 };
 
@@ -413,6 +415,7 @@ namespace Globals
 	// static inline bool bMinimumPlayersToDropLS = 1;
 	static inline bool bPlayground = false;
 	static inline bool bRestarting = false;
+	static inline bool bNoMCP = true;
 	static int AmountOfRestarts = 0;
 }
 

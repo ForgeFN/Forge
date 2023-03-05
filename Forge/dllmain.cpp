@@ -150,7 +150,7 @@ DWORD WINAPI Main(LPVOID)
 
     CREATE_HOOK(rettrue, CollectGarbage);
 
-    if (true)
+    if (Globals::bNoMCP)
     {
         CREATE_HOOK(IsNoMCPHook, IsNoMCP);
     }
