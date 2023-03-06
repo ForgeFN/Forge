@@ -185,6 +185,12 @@ void ServerCheatHook(AFortPlayerControllerAthena* PlayerController, FString Msg)
 				SendMessageToConsole(PlayerController, L"Requested item is not a world item definition!\n");
 			}
 		}
+		
+		else if (Command == "pausesafezone")
+		{
+			UKismetSystemLibrary::ExecuteConsoleCommand(GetWorld(), L"pausesafezone", nullptr);
+		}
+		
 		else if (Command == "teleport")
 		{
 			ReceivingController->CheatManager = (UCheatManager*)UGameplayStatics::SpawnObject(UCheatManager::StaticClass(), ReceivingController);
@@ -1100,6 +1106,7 @@ cheat setpickaxe <ShortPickaxeName> - Changes the player's pickaxe to the new pi
 cheat op \PlayerName\ - Gives operator to this player's ip.
 cheat deop \PlayerName\ - Removes operator from this player's ip.
 cheat giveperm - This command lets everyone on the player's island to have permissions (fly, build, etc.).
+cheat pausesafezone - Pauses safe zone.
 
 If you want to execute a command on a certain player, surround their name (case sensitive) with \, and put the param anywhere. Example: cheat sethealth \Milxnor\ 100
 )";
