@@ -699,6 +699,8 @@ bool ReadyToStartMatchHook(AFortGameModeAthena* GameMode)
 			}
 		}
 
+		std::cout << std::format("Gamemode: 0x{:x}\n", __int64(GameMode));
+
 		AllVehicleSpawners.Free();
 
 		auto Globals = GetFortGlobals();
@@ -916,6 +918,36 @@ static void GenericArray_GetHook(void* TargetArray, const FArrayProperty* ArrayP
 	return GenericArray_Get(TargetArray, ArrayProp, Index, Item);
 }
 
+__int64 (*asdaqdOg)(__int64 a1, float a2) = decltype(asdaqdOg)(__int64(GetModuleHandleW(0)) + 0x11ED3F0);
+
+__int64 asdaqdDetour(__int64 a1, float a2)
+{
+	std::cout << "zone222 a2: " << a2 << '\n';
+	std::cout << std::format("zone222 funny: 0x{:x}\n", __int64(_ReturnAddress()) - __int64(GetModuleHandleW(0)));
+	return asdaqdOg(a1, a2);
+}
+
+__int64 (*wtfafaeifgjkwOg)(UObject* a1) = decltype(wtfafaeifgjkwOg)(__int64(GetModuleHandleW(0)) + 0x2E4C200);
+
+__int64 wtfafaeifgjkwDetour(UObject* a1)
+{
+	if (a1->IsA(AFortGameMode::StaticClass()))
+	{
+		// std::cout << std::format("zone333 funny: 0x{:x}\n", __int64(_ReturnAddress()) - __int64(GetModuleHandleW(0)));
+	}
+
+	return wtfafaeifgjkwOg(a1);
+}
+
+void (*sub_7FF68F4E72C0Og)(__int64 a1, int a2) = decltype(sub_7FF68F4E72C0Og)(__int64(GetModuleHandleW(0)) + 0x11E72C0);
+
+void sub_7FF68F4E72C0Detour(__int64 a1, int a2)
+{
+	std::cout << "a2: " << a2 << '\n';
+	std::cout << std::format("zone funny: 0x{:x}\n", __int64(_ReturnAddress()) - __int64(GetModuleHandleW(0)));
+	return sub_7FF68F4E72C0Og(a1, a2);
+}
+
 bool CommitExecuteWeaponHook(UObject* Object, UFunction*, void* Parameters)
 {
 	auto Ability = (UFortGameplayAbility*)Object;
@@ -995,42 +1027,50 @@ static bool OnSafeZoneStateChangeHook(UObject* Object, UFunction*, void* Paramet
 			SafeZoneIndicator->NextRadius = 20000;
 			SafeZoneIndicator->NextCenter = AircraftLocationQuantize;
 		}
-		if (GameMode->SafeZonePhase == 4)
+		if (GameMode->SafeZonePhase == 4) // Start
 		{
-			std::random_device rd; // obtain a random number from hardware
-			std::mt19937 gen(rd()); // seed the generator
-			std::uniform_int_distribution<> distr(100.f, 1000.f);
+			// AircraftLocationQuantize += FVector_NetQuantize100{ GetRandomFloat(0, 1000), GetRandomFloat(0, 1000), 0 };
 
 			UKismetSystemLibrary::ExecuteConsoleCommand(GetWorld(), L"startshrinksafezone", nullptr);
 			SafeZoneIndicator->NextRadius = 9500;
-			SafeZoneIndicator->NextCenter = AircraftLocationQuantize; // FVector_NetQuantize100{ AircraftLocationQuantize + FVector_NetQuantize100{ (float)distr(gen), (float)distr(gen), 0 } };
+			SafeZoneIndicator->NextCenter = AircraftLocationQuantize;
 		}
 		if (GameMode->SafeZonePhase == 5)
 		{
+			AircraftLocationQuantize += FVector_NetQuantize100{ GetRandomFloat(5000, 10000), GetRandomFloat(5000, 10000), 0 };
+
 			UKismetSystemLibrary::ExecuteConsoleCommand(GetWorld(), L"startshrinksafezone", nullptr);
 			SafeZoneIndicator->NextRadius = 4000;
 			SafeZoneIndicator->NextCenter = AircraftLocationQuantize;
 		}
 		if (GameMode->SafeZonePhase == 6)
 		{
+			AircraftLocationQuantize += FVector_NetQuantize100{ GetRandomFloat(5000, 10000), GetRandomFloat(5000, 10000), 0 };
+
 			UKismetSystemLibrary::ExecuteConsoleCommand(GetWorld(), L"startshrinksafezone", nullptr);
 			SafeZoneIndicator->NextRadius = 1000;
 			SafeZoneIndicator->NextCenter = AircraftLocationQuantize;
 		}
 		if (GameMode->SafeZonePhase == 7)
 		{
+			AircraftLocationQuantize += FVector_NetQuantize100{ GetRandomFloat(5000, 10000), GetRandomFloat(5000, 10000), 0 };
+
 			UKismetSystemLibrary::ExecuteConsoleCommand(GetWorld(), L"startshrinksafezone", nullptr);
 			SafeZoneIndicator->NextRadius = 0;
 			SafeZoneIndicator->NextCenter = AircraftLocationQuantize;
 		}
 		if (GameMode->SafeZonePhase == 8)
 		{
+			AircraftLocationQuantize += FVector_NetQuantize100{ GetRandomFloat(5000, 10000), GetRandomFloat(5000, 10000), 0 };
+
 			UKismetSystemLibrary::ExecuteConsoleCommand(GetWorld(), L"startshrinksafezone", nullptr);
 			SafeZoneIndicator->NextRadius = 0;
 			SafeZoneIndicator->NextCenter = AircraftLocationQuantize;
 		}
 		if (GameMode->SafeZonePhase == 9)
 		{
+			AircraftLocationQuantize += FVector_NetQuantize100{ GetRandomFloat(5000, 10000), GetRandomFloat(5000, 10000), 0 };
+
 			UKismetSystemLibrary::ExecuteConsoleCommand(GetWorld(), L"startshrinksafezone", nullptr);
 			SafeZoneIndicator->NextRadius = 0;
 			SafeZoneIndicator->NextCenter = AircraftLocationQuantize;
