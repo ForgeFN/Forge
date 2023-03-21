@@ -7,8 +7,9 @@
 #include <unordered_map>
 #include <random>
 #include <filesystem>
-
+#include <iomanip>
 #include "discord.h"
+#include <nlohmann/json.hpp>
 
 // #define DEVELOPER_BUILD
 
@@ -417,6 +418,7 @@ namespace Globals
 	static inline bool bRestarting = false;
 	static inline bool bNoMCP = true;
 	static int AmountOfRestarts = 0;
+	static std::string mode = "Solo";
 }
 
 static AOnlineBeaconHost* BeaconHost = nullptr;
@@ -473,20 +475,61 @@ inline void RestartServer()
 	UptimeWebHook.send_message("Servers restarting!");
 }
 
+using json = nlohmann::json;
+
 static UFortPlaylistAthena* GetPlaylistToUse()
 {
-	UFortPlaylistAthena* Playlist = Globals::bCreative ? UObject::FindObject<UFortPlaylistAthena>("/Game/Athena/Playlists/Creative/Playlist_PlaygroundV2.Playlist_PlaygroundV2") :
-		(Globals::bPlayground ? UObject::FindObject<UFortPlaylistAthena>("/Game/Athena/Playlists/Playground/Playlist_Playground.Playlist_Playground") :
-			UObject::FindObject<UFortPlaylistAthena>("/Game/Athena/Playlists/Playlist_DefaultSolo.Playlist_DefaultSolo")
-			// UObject::FindObject<UFortPlaylistAthena>("/Game/Athena/Playlists/gg/Playlist_Gg_Reverse.Playlist_Gg_Reverse")
-			// UObject::FindObject<UFortPlaylistAthena>("/Game/Athena/Playlists/Playlist_DefaultDuo.Playlist_DefaultDuo")
-			// UObject::FindObject<UFortPlaylistAthena>("/Game/Athena/Playlists/Trios/Playlist_Trios.Playlist_Trios")
-			// UObject::FindObject<UFortPlaylistAthena>("/Game/Athena/Playlists/Low/Playlist_Low_Solo.Playlist_Low_Solo")
-			// UObject::FindObject<UFortPlaylistAthena>("/Game/Athena/Playlists/Music/Playlist_Music_High.Playlist_Music_High")
-			// UObject::FindObject<UFortPlaylistAthena>("/Game/Athena/Playlists/Ashton/Playlist_Ashton_Lg.Playlist_Ashton_Lg")
-			);
+    if (!std::ifstream("config.json"))
+    {
+        json data;
+        data["playlist"] = "Lategame";
+        data["advancedplaylist"] = "/Game/Athena/Playlists/gg/Playlist_Gg_Reverse.Playlist_Gg_Reverse";
 
-	return Playlist;
+        std::ofstream file("config.json");
+        file << std::setw(4) << data;
+        file.close();
+    }
+
+    std::ifstream file("config.json");
+    json data;
+    file >> data;
+
+    std::string playlistName = data["playlist"];
+    std::string advancedPlaylistPath = data["advancedplaylist"];
+
+    if (playlistName == "Creative")
+    {
+        Globals::bCreative = true;
+        Globals::bLateGame = false;
+        Globals::bPlayground = false;
+        Globals::bSiphonEnabled = false;
+    }
+    else if (playlistName == "Playground")
+    {
+        Globals::bPlayground = true;
+        Globals::bLateGame = false;
+        Globals::bCreative = false;
+        Globals::bSiphonEnabled = true;
+    }
+    else if (playlistName == "Lategame")
+    {
+        Globals::bLateGame = true;
+        Globals::bPlayground = false;
+        Globals::bCreative = false;
+        Globals::bSiphonEnabled = true;
+    }
+    else if (playlistName == "Solo" || playlistName == "Oneshot Solo")
+    {
+        Globals::bPlayground = false;
+        Globals::bLateGame = false;
+        Globals::bCreative = false;
+        Globals::bSiphonEnabled = false;
+    }
+
+    Globals::mode = playlistName;
+
+    UFortPlaylistAthena* Playlist = UObject::FindObject<UFortPlaylistAthena>(advancedPlaylistPath.empty() ? "/Game/Athena/Playlists/Playlist_DefaultSolo.Playlist_DefaultSolo" : advancedPlaylistPath);
+    return Playlist;
 }
 
 #define ENUM_CLASS_FLAGS(Enum) \
