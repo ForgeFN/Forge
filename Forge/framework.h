@@ -32,6 +32,19 @@ struct FFrame
 	uint8* Locals;
 };
 
+namespace Globals
+{
+	static inline bool bSiphonEnabled = true;
+	static inline bool bLogProcessEvent = false;
+	static inline bool bCreative = false; // Playlist->bEnableCreativeMode
+	static inline bool bLateGame = false;
+	// static inline bool bMinimumPlayersToDropLS = 1;
+	static inline bool bPlayground = false;
+	static inline bool bRestarting = false;
+	static inline bool bNoMCP = true;
+	static int AmountOfRestarts = 0;
+}
+
 static ENetMode (*GetNetMode)() = decltype(GetNetMode)(__int64(GetModuleHandleW(0)) + 0x34d2140);
 static bool (*IsNoMCP)() = decltype(IsNoMCP)(__int64(GetModuleHandleW(0)) + 0x161d600);
 
@@ -321,103 +334,6 @@ static FVector GetActorLocation(AActor* Actor)
 }
 
 static __int64 (*ApplyCustomizationToCharacter)(AFortPlayerState* a1) = decltype(ApplyCustomizationToCharacter)(__int64(GetModuleHandleW(0)) + 0x1A1FE80);
-
-inline APawn* SpawnDefaultPawnForHook(AGameModeBase* GameMode, AController* NewPlayer, AActor* StartSpot)
-{
-	// std::cout << std::format("SpawnDefaultPawnForHook: 0x{:x}\n", __int64(_ReturnAddress()) - __int64(GetModuleHandleW(0)));
-
-	auto SpawnTransform = StartSpot->GetTransform();
-	// SpawnLocation.Translation = FVector{ 1250, 1818, 3284 };
-
-	auto Controller = Cast<AFortPlayerControllerAthena>(NewPlayer);
-
-	bool bIsRespawning = false;
-
-	auto PlayerState = Cast<AFortPlayerStateAthena>(Controller->PlayerState);
-	
-	if (Controller)
-	{
-		if (PlayerState)
-		{
-			auto& RespawnData = PlayerState->RespawnData;
-
-			if (RespawnData.bServerIsReady && RespawnData.bRespawnDataAvailable) // && GameState->IsRespawningAllowed(PlayerState);
-			{
-				SpawnTransform.Translation = PlayerState->RespawnData.RespawnLocation;
-				// SpawnTransform.Rotation = Quaternion(PlayerState->RespawnData.RespawnRotation);
-
-				bIsRespawning = true;
-			}
-		}
-	}
-
-	auto newpawn = GameMode->SpawnDefaultPawnAtTransform(NewPlayer, SpawnTransform);
-	std::cout << "newpawn: " << newpawn << '\n';
-	std::cout << "bIsRespawning: " << bIsRespawning << '\n';
-
-	if (newpawn)
-	{
-		std::cout << "bUseControllerRotationPitch: " << (int)newpawn->bUseControllerRotationPitch << '\n';
-		std::cout << "bUseControllerRotationRoll: " << (int)newpawn->bUseControllerRotationRoll << '\n';
-		std::cout << "bUseControllerRotationYaw: " << (int)newpawn->bUseControllerRotationYaw << '\n';
-
-		auto PawnAsAthena = Cast<AFortPlayerPawnAthena>(newpawn);
-
-		if (PawnAsAthena && Controller)
-		{
-			std::cout << "wtf!\n";
-
-			PawnAsAthena->CosmeticLoadout = Controller->CosmeticLoadoutPC;
-			PawnAsAthena->OnRep_CosmeticLoadout();
-
-			ApplyCID(PlayerState, Controller->CosmeticLoadoutPC.Character);
-
-			// ApplyCustomizationToCharacter(PlayerState);
-
-			// ApplyCID(PlayerState, PawnAsAthena->CosmeticLoadout.Character, PawnAsAthena);
-
-			if (bIsRespawning)
-			{
-				PawnAsAthena->SetShield(100);
-
-				auto& ItemInstances = Controller->WorldInventory->Inventory.ItemInstances;
-
-				for (int i = 0; i < ItemInstances.Num(); i++)
-				{
-					auto ItemInstance = ItemInstances[i];
-
-					if (auto WeaponDef = Cast<UFortWeaponItemDefinition>(ItemInstance->ItemEntry.ItemDefinition))
-					{
-						auto ClipSize = GetClipSize(WeaponDef);
-
-						auto ReplicatedEntry = FindReplicatedEntry(Controller, WeaponDef);
-
-						ItemInstance->ItemEntry.LoadedAmmo = GetClipSize(WeaponDef);
-						ReplicatedEntry->LoadedAmmo = ClipSize;
-
-						Controller->WorldInventory->Inventory.MarkItemDirty(ItemInstance->ItemEntry);
-						Controller->WorldInventory->Inventory.MarkItemDirty(*ReplicatedEntry);
-					}
-				}
-			}
-		}		
-	}
-
-	return newpawn;
-}
-
-namespace Globals
-{
-	static inline bool bSiphonEnabled = true;
-	static inline bool bLogProcessEvent = false;
-	static inline bool bCreative = false; // Playlist->bEnableCreativeMode
-	static inline bool bLateGame = false;
-	// static inline bool bMinimumPlayersToDropLS = 1;
-	static inline bool bPlayground = false;
-	static inline bool bRestarting = false;
-	static inline bool bNoMCP = true;
-	static int AmountOfRestarts = 0;
-}
 
 static AOnlineBeaconHost* BeaconHost = nullptr;
 

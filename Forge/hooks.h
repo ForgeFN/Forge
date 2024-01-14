@@ -1557,85 +1557,6 @@ void HandleStartingNewPlayerHook(AFortGameModeAthena* GameMode, AFortPlayerContr
 	PlayerState->bHasStartedPlaying = true;
 	PlayerState->OnRep_bHasStartedPlaying();
 
-	auto PickaxeDefinition = Globals::bNoMCP ? GetRandomObjectOfClass<UAthenaPickaxeItemDefinition>(true, true) :
-		NewPlayer->CosmeticLoadoutPC.Pickaxe; // UObject::FindObject<UAthenaPickaxeItemDefinition>("/Game/Athena/Items/Cosmetics/Pickaxes/DefaultPickaxe.DefaultPickaxe");
-	GiveItem(NewPlayer, PickaxeDefinition->WeaponDefinition, 1);
-	
-	/*
-	static auto WallPiece = UObject::FindObject<UFortItemDefinition>("/Game/Items/Weapons/BuildingTools/BuildingItemData_Wall.BuildingItemData_Wall");
-	static auto FloorPiece = UObject::FindObject<UFortItemDefinition>("/Game/Items/Weapons/BuildingTools/BuildingItemData_Floor.BuildingItemData_Floor");
-	static auto StairPiece = UObject::FindObject<UFortItemDefinition>("/Game/Items/Weapons/BuildingTools/BuildingItemData_Stair_W.BuildingItemData_Stair_W");
-	static auto RoofPiece = UObject::FindObject<UFortItemDefinition>("/Game/Items/Weapons/BuildingTools/BuildingItemData_RoofS.BuildingItemData_RoofS");
-
-	GiveItem(NewPlayer, WallPiece, 1);
-	GiveItem(NewPlayer, FloorPiece, 1);
-	GiveItem(NewPlayer, StairPiece, 1);
-	GiveItem(NewPlayer, RoofPiece, 1);
-	*/
-
-	for (int i = 0; i < GameMode->StartingItems.Num(); i++)
-	{
-		auto& StartingItem = GameMode->StartingItems[i];
-		auto ItemDef = StartingItem.Item;
-
-		if (!ItemDef)
-			continue;
-
-		// std::cout << std::format("[{}] {}\n", i, ItemDef->GetFullName());
-
-		GiveItem(NewPlayer, StartingItem.Item, StartingItem.Count);
-	}
-
-	auto CurrentPlaylist = GetCurrentPlaylist();
-
-	if (CurrentPlaylist)
-	{
-		for (int i = 0; i < CurrentPlaylist->InventoryItemsToGrant.Num(); i++)
-		{
-			auto& StartingItem = CurrentPlaylist->InventoryItemsToGrant[i];
-			auto ItemDef = StartingItem.Item;
-
-			if (!ItemDef)
-				continue;
-
-			// std::cout << std::format("[{}] {}\n", i, ItemDef->GetFullName());
-
-			GiveItem(NewPlayer, StartingItem.Item, StartingItem.Count);
-		}
-	}
-
-	/*
-	auto MutatorListComponent = GameState->MutatorListComponent;
-	std::cout << "MutatorListComponent: " << MutatorListComponent << '\n';
-	auto Mutator = (AFortAthenaMutator_InventoryOverride*)MutatorListComponent->GetMutatorByClass(AFortAthenaMutator_InventoryOverride::StaticClass());
-	std::cout << "Mutator: " << Mutator << '\n';
-
-	if (Mutator)
-	{
-		std::cout << "size: " << Mutator->InventoryLoadouts.Num() << '\n';
-
-		for (int i = 0; i < Mutator->InventoryLoadouts.Num(); i++)
-		{
-			auto& InventoryLoadout = Mutator->InventoryLoadouts[i];
-
-			for (int z = 0; i < InventoryLoadout.Loadout.Num(); z++)
-			{
-				auto& StartingItem = InventoryLoadout.Loadout[z];
-				auto ItemDef = StartingItem.Item;
-
-				if (!ItemDef)
-					continue;
-
-				std::cout << std::format("[{}] {}\n", z, ItemDef->GetFullName());
-
-				GiveItem(NewPlayer, StartingItem.Item, StartingItem.Count);
-			}
-		}
-	}
-	*/
-
-	Update(NewPlayer);
-
 	/* GiveItem(NewPlayer, UObject::FindObject<UFortItemDefinition>("/Game/Athena/Items/Weapons/WID_Shotgun_Standard_Athena_SR_Ore_T03.WID_Shotgun_Standard_Athena_SR_Ore_T03"), 1);
 	GiveItem(NewPlayer, UObject::FindObject<UFortItemDefinition>("/Game/Athena/Items/Weapons/WID_Assault_AutoHigh_Athena_SR_Ore_T03.WID_Assault_AutoHigh_Athena_SR_Ore_T03"), 1);
 	GiveItem(NewPlayer, UObject::FindObject<UFortItemDefinition>("/Game/Athena/Items/Weapons/WID_Pistol_AutoHeavyPDW_Athena_R_Ore_T03.WID_Pistol_AutoHeavyPDW_Athena_R_Ore_T03"), 1);
@@ -1650,40 +1571,18 @@ void HandleStartingNewPlayerHook(AFortGameModeAthena* GameMode, AFortPlayerContr
 	// static auto BodyPart = UObject::FindObject<UCustomCharacterPart>("/Game/Characters/CharacterParts/Female/Medium/Bodies/F_Med_Soldier_01.F_Med_Soldier_01");
 	static auto BackpackPart = UObject::FindObject<UCustomCharacterPart>("/Game/Characters/CharacterParts/Backpacks/NoBackpack.NoBackpack");
 
-	if (false)
-	{
-		static UFortHeroType* HeroTypeToUse = UObject::FindObject<UFortHeroType>("/Game/Athena/Heroes/HID_058_Athena_Commando_M_SkiDude_GER.HID_058_Athena_Commando_M_SkiDude_GER");
-		PlayerState->HeroType = HeroTypeToUse;
-		PlayerState->OnRep_HeroType();
-
-		NewPlayer->CosmeticLoadoutPC.Character = GetRandomObjectOfClass<UAthenaCharacterItemDefinition>(true, true);
-		NewPlayer->CosmeticLoadoutPC.Glider = GetRandomObjectOfClass<UAthenaGliderItemDefinition>(true, true);
-		NewPlayer->CosmeticLoadoutPC.SkyDiveContrail = GetRandomObjectOfClass<UAthenaSkyDiveContrailItemDefinition>(true, true);
-		NewPlayer->CosmeticLoadoutPC.Pickaxe = PickaxeDefinition;
-		NewPlayer->CosmeticLoadoutPC.bIsDefaultCharacter = false;
-
-		for (int i = 0; i < 7; i++)
-		{
-			NewPlayer->CosmeticLoadoutPC.ItemWraps.Add(GetRandomObjectOfClass<UAthenaItemWrapDefinition>(true, true));
-		}
-
-		// PlayerState->CharacterData.Parts[0] = HeadPart;
-		// PlayerState->CharacterData.Parts[1] = BodyPart;
-
-		PlayerState->CharacterData.Parts[3] = BackpackPart;
-		PlayerState->OnRep_CharacterData();
-	}
-	else
 	{
 		NewPlayer->CosmeticLoadoutPC.Character = GetRandomObjectOfClass<UAthenaCharacterItemDefinition>(true, true);
 		NewPlayer->CosmeticLoadoutPC.Glider = GetRandomObjectOfClass<UAthenaGliderItemDefinition>(true, true);
 		NewPlayer->CosmeticLoadoutPC.SkyDiveContrail = GetRandomObjectOfClass<UAthenaSkyDiveContrailItemDefinition>(true, true);
-		NewPlayer->CosmeticLoadoutPC.Pickaxe = PickaxeDefinition;
+		NewPlayer->CosmeticLoadoutPC.Pickaxe = GetRandomObjectOfClass<UAthenaPickaxeItemDefinition>(true, true);
 		NewPlayer->CosmeticLoadoutPC.bIsDefaultCharacter = false;
 	}
 
 	static auto GameplayAbilitySet = UObject::FindObject<UFortAbilitySet>("/Game/Abilities/Player/Generic/Traits/DefaultPlayer/GAS_AthenaPlayer.GAS_AthenaPlayer");
 	GiveFortAbilitySet(PlayerState, GameplayAbilitySet);
+
+	auto CurrentPlaylist = GetCurrentPlaylist();
 
 	if (CurrentPlaylist)
 	{
@@ -2130,6 +2029,189 @@ static void TickFlushHook(UNetDriver* NetDriver)
 			PlayerController->ServerAttemptInventoryDrop(ItemInstance->ItemEntry.ItemGuid, ItemInstance->ItemEntry.Count);
 	}
 } */
+
+
+inline APawn* SpawnDefaultPawnForHook(AGameModeBase* GameModeA, AController* NewPlayer, AActor* StartSpot)
+{
+	auto GameMode = Cast<AFortGameModeAthena>(GameModeA);
+
+	if (!GameMode)
+		return nullptr;
+
+	// std::cout << std::format("SpawnDefaultPawnForHook: 0x{:x}\n", __int64(_ReturnAddress()) - __int64(GetModuleHandleW(0)));
+
+	auto SpawnTransform = StartSpot->GetTransform();
+	// SpawnLocation.Translation = FVector{ 1250, 1818, 3284 };
+
+	auto Controller = Cast<AFortPlayerControllerAthena>(NewPlayer);
+
+	bool bIsRespawning = false;
+
+	auto PlayerState = Cast<AFortPlayerStateAthena>(Controller->PlayerState);
+
+	if (Controller)
+	{
+		if (PlayerState)
+		{
+			auto& RespawnData = PlayerState->RespawnData;
+
+			if (RespawnData.bServerIsReady && RespawnData.bRespawnDataAvailable) // && GameState->IsRespawningAllowed(PlayerState);
+			{
+				SpawnTransform.Translation = PlayerState->RespawnData.RespawnLocation;
+				// SpawnTransform.Rotation = Quaternion(PlayerState->RespawnData.RespawnRotation);
+
+				bIsRespawning = true;
+			}
+			}
+		}
+
+	auto newpawn = GameMode->SpawnDefaultPawnAtTransform(NewPlayer, SpawnTransform);
+	std::cout << "newpawn: " << newpawn << '\n';
+	std::cout << "bIsRespawning: " << bIsRespawning << '\n';
+
+	bool bFoundPickaxe = false;
+
+	auto& ItemInstances = Controller->WorldInventory->Inventory.ItemInstances;
+
+	for (int i = 0; i < ItemInstances.Num() && !bFoundPickaxe; ++i)
+	{
+		bFoundPickaxe = ItemInstances[i]->ItemEntry.ItemDefinition->IsA(UFortWeaponMeleeItemDefinition::StaticClass());
+	}
+
+	bool bShouldGiveStartingItems = !bFoundPickaxe;
+
+	if (bShouldGiveStartingItems)
+	{
+		auto PickaxeDefinition = Globals::bNoMCP ? GetRandomObjectOfClass<UAthenaPickaxeItemDefinition>(true, true) :
+			Controller->CosmeticLoadoutPC.Pickaxe; // UObject::FindObject<UAthenaPickaxeItemDefinition>("/Game/Athena/Items/Cosmetics/Pickaxes/DefaultPickaxe.DefaultPickaxe");
+		GiveItem(Controller, PickaxeDefinition->WeaponDefinition, 1);
+
+		/*
+		static auto WallPiece = UObject::FindObject<UFortItemDefinition>("/Game/Items/Weapons/BuildingTools/BuildingItemData_Wall.BuildingItemData_Wall");
+		static auto FloorPiece = UObject::FindObject<UFortItemDefinition>("/Game/Items/Weapons/BuildingTools/BuildingItemData_Floor.BuildingItemData_Floor");
+		static auto StairPiece = UObject::FindObject<UFortItemDefinition>("/Game/Items/Weapons/BuildingTools/BuildingItemData_Stair_W.BuildingItemData_Stair_W");
+		static auto RoofPiece = UObject::FindObject<UFortItemDefinition>("/Game/Items/Weapons/BuildingTools/BuildingItemData_RoofS.BuildingItemData_RoofS");
+
+		GiveItem(NewPlayer, WallPiece, 1);
+		GiveItem(NewPlayer, FloorPiece, 1);
+		GiveItem(NewPlayer, StairPiece, 1);
+		GiveItem(NewPlayer, RoofPiece, 1);
+		*/
+
+		for (int i = 0; i < GameMode->StartingItems.Num(); i++)
+		{
+			auto& StartingItem = GameMode->StartingItems[i];
+			auto ItemDef = StartingItem.Item;
+
+			if (!ItemDef)
+				continue;
+
+			// std::cout << std::format("[{}] {}\n", i, ItemDef->GetFullName());
+
+			GiveItem(Controller, StartingItem.Item, StartingItem.Count);
+		}
+
+		auto CurrentPlaylist = GetCurrentPlaylist();
+
+		if (CurrentPlaylist)
+		{
+			for (int i = 0; i < CurrentPlaylist->InventoryItemsToGrant.Num(); i++)
+			{
+				auto& StartingItem = CurrentPlaylist->InventoryItemsToGrant[i];
+				auto ItemDef = StartingItem.Item;
+
+				if (!ItemDef)
+					continue;
+
+				// std::cout << std::format("[{}] {}\n", i, ItemDef->GetFullName());
+
+				GiveItem(Controller, StartingItem.Item, StartingItem.Count);
+			}
+		}
+
+		/*
+		auto MutatorListComponent = GameState->MutatorListComponent;
+		std::cout << "MutatorListComponent: " << MutatorListComponent << '\n';
+		auto Mutator = (AFortAthenaMutator_InventoryOverride*)MutatorListComponent->GetMutatorByClass(AFortAthenaMutator_InventoryOverride::StaticClass());
+		std::cout << "Mutator: " << Mutator << '\n';
+
+		if (Mutator)
+		{
+			std::cout << "size: " << Mutator->InventoryLoadouts.Num() << '\n';
+
+			for (int i = 0; i < Mutator->InventoryLoadouts.Num(); i++)
+			{
+				auto& InventoryLoadout = Mutator->InventoryLoadouts[i];
+
+				for (int z = 0; i < InventoryLoadout.Loadout.Num(); z++)
+				{
+					auto& StartingItem = InventoryLoadout.Loadout[z];
+					auto ItemDef = StartingItem.Item;
+
+					if (!ItemDef)
+						continue;
+
+					std::cout << std::format("[{}] {}\n", z, ItemDef->GetFullName());
+
+					GiveItem(NewPlayer, StartingItem.Item, StartingItem.Count);
+				}
+			}
+		}
+		*/
+
+		Update(Controller);
+	}
+
+	if (newpawn)
+	{
+		std::cout << "bUseControllerRotationPitch: " << (int)newpawn->bUseControllerRotationPitch << '\n';
+		std::cout << "bUseControllerRotationRoll: " << (int)newpawn->bUseControllerRotationRoll << '\n';
+		std::cout << "bUseControllerRotationYaw: " << (int)newpawn->bUseControllerRotationYaw << '\n';
+
+		auto PawnAsAthena = Cast<AFortPlayerPawnAthena>(newpawn);
+
+		if (PawnAsAthena && Controller)
+		{
+			std::cout << "wtf!\n";
+
+			PawnAsAthena->CosmeticLoadout = Controller->CosmeticLoadoutPC;
+			PawnAsAthena->OnRep_CosmeticLoadout();
+
+			ApplyCID(PlayerState, Controller->CosmeticLoadoutPC.Character);
+
+			// ApplyCustomizationToCharacter(PlayerState);
+
+			// ApplyCID(PlayerState, PawnAsAthena->CosmeticLoadout.Character, PawnAsAthena);
+
+			if (bIsRespawning)
+			{
+				PawnAsAthena->SetShield(100);
+
+				auto& ItemInstances = Controller->WorldInventory->Inventory.ItemInstances;
+
+				for (int i = 0; i < ItemInstances.Num(); i++)
+				{
+					auto ItemInstance = ItemInstances[i];
+
+					if (auto WeaponDef = Cast<UFortWeaponItemDefinition>(ItemInstance->ItemEntry.ItemDefinition))
+					{
+						auto ClipSize = GetClipSize(WeaponDef);
+
+						auto ReplicatedEntry = FindReplicatedEntry(Controller, WeaponDef);
+
+						ItemInstance->ItemEntry.LoadedAmmo = GetClipSize(WeaponDef);
+						ReplicatedEntry->LoadedAmmo = ClipSize;
+
+						Controller->WorldInventory->Inventory.MarkItemDirty(ItemInstance->ItemEntry);
+						Controller->WorldInventory->Inventory.MarkItemDirty(*ReplicatedEntry);
+					}
+				}
+			}
+		}
+	}
+
+	return newpawn;
+}
 
 static void ServerExecuteInventoryItemHook(AFortPlayerControllerAthena* PlayerController, FGuid ItemGuid)
 {
