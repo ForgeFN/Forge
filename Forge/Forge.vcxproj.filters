@@ -120,9 +120,9 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <None Include="packages.config" />
+    <ResourceCompile Include="Forge.rc" />
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="Forge.rc" />
+    <None Include="packages.config" />
   </ItemGroup>
 </Project>

@@ -1174,7 +1174,7 @@ __int64 (*UPlaysetLevelStreamComponent_LoadPlayset)(UPlaysetLevelStreamComponent
 
 void ShowPlayset(UFortPlaysetItemDefinition* PlaysetItemDef, AFortVolume* Volume, AFortPlayerController* PlayerController, bool bSpawnActors = false, FVector SpawnLocation = FVector())
 {
-	SpawnLocation = SpawnLocation == FVector() ? Volume->K2_GetActorLocation() : SpawnLocation;
+	SpawnLocation = SpawnLocation.X == 0 && SpawnLocation.Y == 0 && SpawnLocation.Z == 0 ? Volume->K2_GetActorLocation() : SpawnLocation;
 
 	auto GameState = Cast<AFortGameStateAthena>(GetWorld()->AuthorityGameMode->GameState);
 

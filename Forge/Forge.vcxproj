@@ -190,10 +190,10 @@
     <ClInclude Include="xorstr.hpp" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="packages.config" />
+    <ResourceCompile Include="Forge.rc" />
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="Forge.rc" />
+    <None Include="packages.config" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
